@@ -6,6 +6,28 @@ Dejavu takes a batch of Python, C++ and Java submissions and ranks every pair by
 
 **Live demo:** _link added after deploy (issue #4)_
 
+## The idea in one example
+
+Two students hand in these. Student B renamed everything to hide the copy:
+
+```python
+# Student A                      # Student B
+def total(nums):                 def add_all(values):
+    s = 0                            result = 0
+    for x in nums:                   for v in values:
+        s += x                           result += v
+    return s                         return result
+```
+
+Dejavu first erases the disguise. Every name becomes `ID`, every number `LIT`, every loop `LOOP`. This is the real output for both files:
+
+```
+A: def ID ( ID ) : ID = LIT LOOP ID in ID : ID += ID return ID
+B: def ID ( ID ) : ID = LIT LOOP ID in ID : ID += ID return ID
+```
+
+The renaming is gone. Next, Dejavu cuts each file into overlapping 5-word pieces and counts how many pieces two files share. Rare pieces count more than pieces everyone writes. It does this for every pair and shows the highest scores first. The rest of this README is the detail.
+
 ## How it works
 
 ```
@@ -57,6 +79,22 @@ From the repo's own tests (`tests/`). The test files were written by hand, the "
 
 **Odd inputs handled:** empty and comment-only files, syntax errors, non-UTF-8 text, macOS zip junk (`__MACOSX/`, `._*`), exact duplicates (rank first), tiny boilerplate files, very large files.
 
+## Hidden characters
+
+Code copied out of a chat window or a web page sometimes carries characters you can't see:
+
+- zero-width spaces
+- odd spaces such as the no-break space
+- bidirectional controls that make code display differently from how it runs ("Trojan Source")
+- look-alike letters, such as a Cyrillic `а` inside an English word
+
+Dejavu does two things with them:
+
+1. **Flags them.** Each affected file is listed with the line and character, under `flags` in the result and as a `hidden chars` line in the CLI. This is a **hint, not proof** of AI use or copying. Dejavu does not detect AI watermarks: those need the AI vendor's secret key, and no major code assistant publishes a public checker.
+2. **Removes them before comparing.** A single zero-width space after `def` broke parsing of a whole function and dropped a copy's score from 1.0 to 0.89 in our test, so hidden characters can't be used to hide a copy.
+
+Not flagged: a byte-order mark at the start of a file (normal on Windows), comments written in another script (e.g. Russian), and accented letters.
+
 Scores are similarity scores for **ranking**, not probabilities. A high score means "look at this pair first", not "proven plagiarism".
 
 ## Run it
@@ -77,7 +115,8 @@ From Python:
 from dejavu.engine import scan
 result = scan("submissions.zip")
 # {"files": {name: source}, "seconds": float,
-#  "pairs": [{"a", "b", "score", "matches": [[[a_start, a_end], [b_start, b_end]], ...]}]}
+#  "pairs": [{"a", "b", "score", "matches": [[[a_start, a_end], [b_start, b_end]], ...]}],
+#  "flags": {name: [{"line", "char", "name"}, ...]}}   # only files with hidden characters
 ```
 
 `matches` (1-based line ranges for the side-by-side view) is filled in for the top 100 pairs.
@@ -95,10 +134,28 @@ Every pull request and every push to `main` runs all four checks in GitHub Actio
 
 Work is tracked in GitHub issues on a [project board](https://github.com/users/itzhimanshugt/projects/4). Each change is merged by PR only after CI passes.
 
+## How Dejavu compares to existing tools
+
+Universities have used MOSS, JPlag and Dolos for years. They all compare structure instead of raw text, and Dejavu follows the same idea. What it adds is aimed at AI rewrites.
+
+| | [MOSS](https://theory.stanford.edu/~aiken/moss) | [JPlag](https://www.jucs.org/jucs_8_11/finding_plagiarisms_among_a.html) | [Dolos](https://arxiv.org/abs/2402.10853) | **Dejavu** |
+|---|---|---|---|---|
+| Reads code as | Token fingerprints (winnowing) | Token stream (Greedy String Tiling) | tree-sitter syntax tree + fingerprints (winnowing) | tree-sitter syntax tree + every fingerprint |
+| Renames | Ignored | Ignored | Ignored | Ignored |
+| Loop ↔ recursion | No rule we found | No rule we found | No rule we found | **Both become `LOOP`** |
+| Style-only rewrites (`++i`/`i++`, braces, `const`) | Partly | Partly | Partly | **Normalized** |
+| Code everyone writes | Hides passages found in more than N files (`-m`) | Base-code option | See its docs | **Rarity weighting**: shared rare code counts more |
+| Instructor template code | Base file (`-b`) | Base code (`-bc`) | See its docs | Not yet (planned) |
+| Hidden characters | Not documented | Not documented | Not documented | **Flagged and removed** |
+| Runs | Stanford web service | Java, local | Node.js, local or web | Python, local or web app |
+
+"No rule we found" and "Not documented" mean we didn't find the feature in the tool's papers or docs. It doesn't mean we tested the tool.
+
 ## Limitations
 
 - Only files in the same language are compared, so a Python solution translated into Java is not caught.
 - The test set is small (3 problems) and hand-written. Thresholds may need tuning on the real data.
+- Starter code given to every student isn't removed yet. Rarity weighting lowers its weight but doesn't zero it.
 - A heavy rewrite that changes the algorithm itself, such as a hash map replaced by sorting, is treated as a different solution. That is by design.
 
 ## AI-use disclosure

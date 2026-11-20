@@ -17,7 +17,8 @@ from dejavu.engine import scan
 result = scan("path/to/folder_or.zip")
 # result = {"files": {name: source_text}, "seconds": float,
 #           "pairs": [{"a": name, "b": name, "score": 0..1,
-#                      "matches": [[[a_start, a_end], [b_start, b_end]], ...]}]}  # 1-based lines, sorted by score desc
+#                      "matches": [[[a_start, a_end], [b_start, b_end]], ...]}],  # 1-based lines, sorted by score desc
+#           "flags": {name: [{"line": n, "char": "U+200B", "name": "ZERO WIDTH SPACE"}]}}  # hidden chars; hint only, not in score
 ```
 `matches` is filled for the top 100 pairs only. Fake data to build against: `sample_result.json`.
 
