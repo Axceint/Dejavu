@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<script>
+// Same rules and storage key as review.html, so the choice carries from the landing page into the review.
+const HOST_THEME = /*__THEME__*/null;
+(() => {
+  let t = null;
+  try { t = localStorage.getItem("dejavu:theme"); } catch (e) { /* storage blocked: fall through */ }
+  document.documentElement.dataset.theme = t === "light" || t === "dark" ? t
+    : HOST_THEME || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+})();
+</script>
+<style>
+:root{color-scheme:light;--panel:#fff;--sunk:#f3f3f1;--line2:#cfcfca;--text:#1b1b19;--accent:#b45309}
+:root[data-theme=dark]{color-scheme:dark;--panel:#1b1b1a;--sunk:#222220;--line2:#3d3d39;--text:#ecece8;--accent:#f0a33a}
+html,body{margin:0;background:transparent;overflow:hidden}
+button{width:32px;height:32px;display:flex;align-items:center;justify-content:center;padding:0;cursor:pointer;
+  border:1px solid var(--line2);border-radius:4px;background:var(--panel);color:var(--text)}
+button:hover{background:var(--sunk)}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:-3px}
+svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round}
+[data-theme=dark] .i-moon,[data-theme=light] .i-sun{display:none}
+</style>
+</head>
+<body>
+<button id="t" type="button">
+  <svg class="i-moon" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 9.8A5.6 5.6 0 0 1 6.2 2.5a5.6 5.6 0 1 0 7.3 7.3Z"/></svg>
+  <svg class="i-sun" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="2.8"/><path d="M8 1.2v1.6M8 13.2v1.6M1.2 8h1.6M13.2 8h1.6M3.2 3.2l1.1 1.1M11.7 11.7l1.1 1.1M3.2 12.8l1.1-1.1M11.7 4.3l1.1-1.1"/></svg>
+</button>
+<script>
+(() => {
+  const root = document.documentElement, btn = document.getElementById("t");
+  function setTheme(t, save) {
+    root.dataset.theme = t;
+    btn.setAttribute("aria-label", `Switch to ${t === "dark" ? "light" : "dark"} theme`);
+    btn.title = btn.getAttribute("aria-label");
+    if (save) { try { localStorage.setItem("dejavu:theme", t); } catch (e) { /* not saved: still applies now */ } }
+    // the host page's CSS repaints itself from this attribute (see app.py)
+    try { window.parent.document.documentElement.dataset.dejavuTheme = t; } catch (e) { /* other origin: host keeps its theme */ }
+  }
+  setTheme(root.dataset.theme, false);
+  btn.onclick = () => setTheme(root.dataset.theme === "dark" ? "light" : "dark", true);
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (e) => {
+    let saved = null;
+    try { saved = localStorage.getItem("dejavu:theme"); } catch (err) { /* treat as unsaved */ }
+    if (!saved && !HOST_THEME) setTheme(e.matches ? "dark" : "light", false);
+  });
+})();
+</script>
+</body>
+</html>

@@ -39,9 +39,17 @@ def payload(r, limit=LIMIT):
     }
 
 
+def _host(theme):
+    return json.dumps(theme if theme in ("light", "dark") else None)
+
+
 def render(data, theme=None):
     """theme: the host app's "light" or "dark", used until the reviewer picks one with the toggle."""
     # "<" escaped so code like "</script>" inside a submission can't close the data block
     blob = json.dumps(data, separators=(",", ":")).replace("<", "\\u003c")
-    host = json.dumps(theme if theme in ("light", "dark") else None)
-    return TEMPLATE.read_text("utf-8").replace("/*__THEME__*/null", host, 1).replace("/*__DATA__*/null", blob, 1)
+    return TEMPLATE.read_text("utf-8").replace("/*__THEME__*/null", _host(theme), 1).replace("/*__DATA__*/null", blob, 1)
+
+
+def theme_toggle(theme=None):
+    """The light/dark button for pages without the review screen; shares the review's saved choice."""
+    return Path(__file__).with_name("toggle.html").read_text("utf-8").replace("/*__THEME__*/null", _host(theme), 1)
