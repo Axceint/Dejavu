@@ -35,7 +35,14 @@ const HOST_THEME = /*__THEME__*/null;
 }
 *{box-sizing:border-box}
 html,body{height:100%;margin:0}
-body{background:var(--bg);color:var(--text);font:13px/1.45 var(--sans);-webkit-font-smoothing:antialiased}
+body{background:var(--bg);color:var(--text);font:14px/1.5 var(--sans);-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+/* key numbers (counts, scores, times) read first: bold mono */
+.k{color:var(--text);font-family:var(--mono);font-weight:700}
+/* highlight palettes for matched code; amber is the default in :root */
+:root[data-hl=blue]{--match:rgba(59,130,246,.14);--verb:rgba(59,130,246,.28);--hot:rgba(59,130,246,.40)}
+:root[data-hl=green]{--match:rgba(34,160,90,.14);--verb:rgba(34,160,90,.28);--hot:rgba(34,160,90,.40)}
+:root[data-hl=rose]{--match:rgba(230,60,100,.12);--verb:rgba(230,60,100,.25);--hot:rgba(230,60,100,.36)}
+:root[data-hl=grey]{--match:rgba(128,128,128,.14);--verb:rgba(128,128,128,.28);--hot:rgba(128,128,128,.42)}
 button,input,select{font:inherit;color:inherit}
 button{cursor:pointer}
 :focus-visible{outline:2px solid var(--accent);outline-offset:1px}
@@ -45,6 +52,9 @@ kbd{font:11px/1 var(--mono);padding:2px 4px;border:1px solid var(--line2);border
 .app{height:100vh;display:grid;grid-template-columns:300px minmax(0,1fr);grid-template-rows:auto minmax(0,1fr)}
 .top{grid-column:1/-1;display:flex;align-items:center;gap:16px;padding:8px 12px;border-bottom:1px solid var(--line);background:var(--panel)}
 .top .stats{color:var(--muted)}
+.ctl{display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-size:13px}
+.ctl select{border:1px solid var(--line2);background:var(--panel);border-radius:4px;padding:3px 6px;line-height:20px}
+.ctl .btn{padding:3px 8px;min-width:30px}
 .prog{display:flex;align-items:center;gap:8px;color:var(--muted)}
 .pbar{width:96px;height:4px;background:var(--sunk);border-radius:2px;overflow:hidden}
 .pbar i{display:block;height:100%;background:var(--text);width:0}
@@ -66,17 +76,17 @@ kbd{font:11px/1 var(--mono);padding:2px 4px;border:1px solid var(--line2);border
 .row{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:4px 8px;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);background:none;padding:8px 12px}
 .row:hover{background:var(--sunk)}
 .row[aria-current=true]{background:var(--sunk);box-shadow:inset 3px 0 0 var(--text)}
-.rk{color:var(--faint);font:12px/18px var(--mono);text-align:right}
+.rk{color:var(--faint);font:12px/20px var(--mono);text-align:right}
 .nm{display:grid;min-width:0}
-.fn{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:18px}
-.fn .d{color:var(--faint)}
+.fn{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:20px;font-weight:500}
+.fn .d{color:var(--faint);font-weight:400}
 .sc{display:grid;justify-items:end;gap:4px}
-.sc .v{font:12px/18px var(--mono)}
+.sc .v{font:700 13px/20px var(--mono)}
 .mini{width:44px;height:3px;background:var(--sunk);border-radius:2px;overflow:hidden}
 .mini i{display:block;height:100%;background:var(--muted)}
 .mini.high i{background:var(--accent)}
 .tags{grid-column:2/-1;display:flex;gap:4px;flex-wrap:wrap}
-.tag{font-size:11px;line-height:16px;padding:0 6px;border-radius:3px;border:1px solid var(--line2);color:var(--muted)}
+.tag{font-size:12px;line-height:18px;padding:0 6px;border-radius:3px;border:1px solid var(--line2);color:var(--muted)}
 .tag.copy{color:var(--copy);background:var(--copy-bg);border-color:transparent}
 .tag.clear{color:var(--clear);background:var(--clear-bg);border-color:transparent}
 .tag.hz{color:var(--accent);border-color:currentColor}
@@ -86,21 +96,22 @@ kbd{font:11px/1 var(--mono);padding:2px 4px;border:1px solid var(--line2);border
 
 .main{display:flex;flex-direction:column;min-height:0;min-width:0;overflow:auto}
 .dh{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;padding:12px 16px 8px}
-.dh h1{font-size:15px;font-weight:600;margin:0;min-width:0;overflow-wrap:anywhere}
+.dh h1{font-size:17px;font-weight:650;letter-spacing:-.01em;margin:0;min-width:0;overflow-wrap:anywhere}
 .dh h1 .x{color:var(--faint);font-weight:400;padding:0 4px}
 .dh h1 .r{color:var(--faint);font:13px var(--mono);margin-right:8px}
-.meta{color:var(--muted);flex-basis:100%}
-.meta b{color:var(--text);font-family:var(--mono)}
+.meta{color:var(--muted);flex-basis:100%;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.meta .score{font:700 22px/1 var(--mono);color:var(--text)}
+.meta .band{font-weight:600;color:var(--text)}
 .dec{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-left:auto}
 .dec .btn[aria-pressed=true][data-d=copy]{color:var(--copy);background:var(--copy-bg);border-color:var(--copy)}
 .dec .btn[aria-pressed=true][data-d=clear]{color:var(--clear);background:var(--clear-bg);border-color:var(--clear)}
 .note{border:1px solid var(--line2);background:var(--panel);border-radius:4px;padding:4px 8px;line-height:20px;width:220px}
 
 .why{margin:0 16px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel)}
-.why summary{padding:6px 12px;cursor:pointer;color:var(--muted);font-weight:600;list-style-position:inside}
+.why summary{padding:8px 12px;cursor:pointer;color:var(--text);font-weight:650;list-style-position:inside}
 .facts{display:grid;grid-template-columns:150px minmax(0,1fr);gap:6px 16px;padding:4px 12px 10px;margin:0;
   max-height:30vh;overflow:auto} /* long evidence scrolls itself instead of squeezing the code panes */
-.facts dt{color:var(--muted)}
+.facts dt{color:var(--muted);font-weight:600;font-size:13px;padding-top:1px}
 .facts dd{margin:0;min-width:0}
 .chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
 .chip{border:1px solid var(--line2);background:var(--bg);border-radius:3px;padding:0 6px;font:12px/20px var(--mono);white-space:nowrap}
@@ -114,9 +125,9 @@ button.chip:hover{border-color:var(--text)}
 .pane{display:flex;flex-direction:column;min-height:0;min-width:0;border:1px solid var(--line);border-radius:6px;background:var(--panel);overflow:hidden}
 .pane header{display:flex;gap:8px;align-items:baseline;padding:6px 10px;border-bottom:1px solid var(--line);background:var(--sunk)}
 .pane header .s{font-weight:700;font-family:var(--mono)}
-.pane header .n{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--mono);font-size:12px}
-.pane header .i{margin-left:auto;color:var(--faint);white-space:nowrap;font-size:12px}
-.code{flex:1;overflow:auto;font:12.5px/19px var(--mono);padding:4px 0;tab-size:4}
+.pane header .n{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--mono);font-size:13px;font-weight:600}
+.pane header .i{margin-left:auto;color:var(--muted);white-space:nowrap;font-size:12px}
+.code{flex:1;overflow:auto;font:var(--code,13px)/1.55 var(--mono);padding:4px 0;tab-size:4}
 .ln{display:flex;white-space:pre;min-width:max-content;padding-right:16px}
 .ln .g{width:14px;flex:none;text-align:center;color:var(--accent);font-weight:700}
 .ln .no{width:40px;flex:none;text-align:right;padding-right:12px;color:var(--faint);user-select:none}
@@ -161,6 +172,12 @@ dialog td:first-child{width:110px}
     <span class="stats" id="stats"></span>
     <span class="prog"><span id="prog" aria-live="polite"></span><span class="pbar" aria-hidden="true"><i id="pbar"></i></span></span>
     <span class="sp"></span>
+    <label class="ctl">Highlight
+      <select id="hl" aria-label="Highlight colour for matching code">
+        <option value="amber">Amber</option><option value="blue">Blue</option><option value="green">Green</option>
+        <option value="rose">Rose</option><option value="grey">Grey</option>
+      </select></label>
+    <span class="ctl" role="group" aria-label="Code size"><button class="btn" id="codeDown" type="button" aria-label="Smaller code" title="Smaller code (-)">A−</button><button class="btn" id="codeUp" type="button" aria-label="Larger code" title="Larger code (+)">A+</button></span>
     <button class="btn" id="export" type="button">Export CSV</button>
     <button class="btn icon" id="themeBtn" type="button">
       <svg class="i-moon" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 9.8A5.6 5.6 0 0 1 6.2 2.5a5.6 5.6 0 1 0 7.3 7.3Z"/></svg>
@@ -204,6 +221,8 @@ dialog td:first-child{width:110px}
     <tr><td><kbd>S</kbd></td><td>Sync scrolling on or off</td></tr>
     <tr><td><kbd>/</kbd></td><td>Filter by file name</td></tr>
     <tr><td><kbd>T</kbd></td><td>Light or dark theme</td></tr>
+    <tr><td><kbd>H</kbd></td><td>Next highlight colour</td></tr>
+    <tr><td><kbd>-</kbd> <kbd>+</kbd></td><td>Smaller / larger code</td></tr>
   </table>
   <p style="color:var(--muted);margin:12px 0">Decisions and notes are saved in this browser only. Export CSV to share them.</p>
   <form method="dialog"><button class="btn">Close</button></form>
@@ -245,6 +264,19 @@ matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (e) => {
   try { saved = localStorage.getItem("dejavu:theme"); } catch (err) { /* treat as unsaved */ }
   if (!saved && !HOST_THEME) setTheme(e.matches ? "dark" : "light", false);
 });
+
+// ---------- remembered view preferences: highlight colour, code size, evidence panel ----------
+const pref = (k, v) => {
+  try { if (v === undefined) return localStorage.getItem("dejavu:" + k); localStorage.setItem("dejavu:" + k, v); }
+  catch (e) { return null; } // storage blocked: preferences last for this visit only
+};
+const HL = ["amber", "blue", "green", "rose", "grey"];
+function setHl(v) { root.dataset.hl = HL.includes(v) ? v : "amber"; $("#hl").value = root.dataset.hl; pref("hl", root.dataset.hl); }
+let codePx = 13;
+function setCode(px) { codePx = Math.max(11, Math.min(20, px)); root.style.setProperty("--code", codePx + "px"); pref("code", codePx); }
+setHl(pref("hl"));
+setCode(+pref("code") || 13);
+$("#hl").onchange = (e) => setHl(e.target.value);
 
 if (!DATA || !DATA.pairs) { main.innerHTML = '<p class="nodata">No scan loaded.</p>'; return; }
 const F = DATA.files, P = DATA.pairs;
@@ -371,14 +403,14 @@ function renderDetail() {
   let facts = "";
   if (frags.length) {
     const longest = byLen[0];
-    facts += `<dt>Matching structure</dt><dd>${pct(p.cov[0])} of A and ${pct(p.cov[1])} of B, in ${frags.length} fragment${frags.length > 1 ? "s" : ""}. Longest: ${longest.len} lines.
+    facts += `<dt>Matching structure</dt><dd><span class="k">${pct(p.cov[0])}</span> of A and <span class="k">${pct(p.cov[1])}</span> of B, in <span class="k">${frags.length}</span> fragment${frags.length > 1 ? "s" : ""}. Longest: <span class="k">${longest.len}</span> lines.
       <div class="chips">${byLen.slice(0, 8).map((f) => `<button type="button" class="chip" data-frag="${f.k}" title="Align both sides on this fragment">A ${f.a[0]}–${f.a[1]} <span class="t">↔</span> B ${f.b[0]}–${f.b[1]}</button>`).join("")}${frags.length > 8 ? `<span class="chip"><span class="t">+${frags.length - 8} more, use [ ]</span></span>` : ""}</div></dd>`;
     facts += p.ren.length
-      ? `<dt>Names in the same roles</dt><dd>${p.ren.length} name${p.ren.length > 1 ? "s" : ""} in A sit where B uses a different one.
+      ? `<dt>Names in the same roles</dt><dd><span class="k">${p.ren.length}</span> name${p.ren.length > 1 ? "s" : ""} in A sit where B uses a different one.
           <div class="chips">${p.ren.slice(0, 10).map(([x, y, n]) => `<span class="chip">${esc(x)} <span class="t">→</span> ${esc(y)} <span class="t">×${n}</span></span>`).join("")}${p.ren.length > 10 ? `<span class="chip"><span class="t">+${p.ren.length - 10} more</span></span>` : ""}</div>
           <button type="button" class="sw" id="renBtn" aria-pressed="${S.ren}">Show A with B's names <kbd>R</kbd></button></dd>`
       : `<dt>Names in the same roles</dt><dd>None found consistently.</dd>`;
-    facts += `<dt>Identical rare lines</dt><dd>${p.verb.length ? `${p.verb.length} line${p.verb.length > 1 ? "s" : ""} appear in both files and in no other submission.
+    facts += `<dt>Identical rare lines</dt><dd>${p.verb.length ? `<span class="k">${p.verb.length}</span> line${p.verb.length > 1 ? "s" : ""} appear in both files and in no other submission.
       <div class="chips">${p.verb.slice(0, 6).map(([la, lb, t]) => `<button type="button" class="chip" data-va="${la}" data-vb="${lb}" title="${esc(t)}">A ${la} = B ${lb}</button>`).join("")}</div>` : "None beyond code other submissions also contain."}</dd>`;
   } else {
     facts += `<dt>Matching structure</dt><dd>Line-level detail is computed for the top 100 pairs only.</dd>`;
@@ -401,9 +433,9 @@ function renderDetail() {
         <button type="button" class="btn" data-d="clear" aria-pressed="${d.s === "clear"}">Not a copy <kbd>X</kbd></button>
         <input class="note" id="note" placeholder="Note" aria-label="Note for this pair" value="${esc(d.note || "")}">
       </div>
-      <div class="meta">Score <b>${p.score.toFixed(2)}</b> · ${b[2]} · ${beats}</div>
+      <div class="meta"><span class="score" title="Similarity score, 0 to 1">${p.score.toFixed(2)}</span><span class="band">${b[2]}</span><span>· ${beats}</span></div>
     </div>
-    <details class="why" open><summary>Why this pair ranks here</summary><dl class="facts">${facts}</dl></details>
+    <details class="why"${pref("why") === "closed" ? "" : " open"}><summary>Why this pair ranks here</summary><dl class="facts">${facts}</dl></details>
     <div class="legend" aria-hidden="true"><span><i style="background:var(--match)"></i>Same structure</span><span><i style="background:var(--verb)"></i>Identical rare line</span><span><i style="background:var(--hot)"></i>Selected fragment</span><span><i style="background:var(--ai)"></i>AI-style comment</span><span>Click a highlighted line to align both sides</span></div>
     <div class="panes">
       ${[["A", A, p.cov ? p.cov[0] : null], ["B", B, p.cov ? p.cov[1] : null]].map(([s, f, c]) => `
@@ -480,6 +512,7 @@ function wireDetail(p, byLen) {
   if (rb) rb.onclick = toggleRen;
   main.querySelectorAll("[data-frag]").forEach((el) => { el.onclick = () => jump(+el.dataset.frag); });
   main.querySelectorAll("[data-va]").forEach((el) => { el.onclick = () => { mark([]); align(+el.dataset.va, +el.dataset.vb); }; });
+  main.querySelector(".why").ontoggle = (e) => pref("why", e.target.open ? "open" : "closed");
   main.querySelectorAll("[data-ai]").forEach((el) => { el.onclick = () => showLine(el.dataset.ai, +el.dataset.line); });
   ["A", "B"].forEach((s) => {
     const c = $("#code" + s), o = s === "A" ? "B" : "A";
@@ -543,7 +576,7 @@ function clearFilters() {
 }
 function progress() {
   const done = P.filter((p) => status(p) !== "open").length;
-  $("#prog").textContent = `${done} of ${P.length} reviewed`;
+  $("#prog").innerHTML = `<span class="k">${done}</span> of ${P.length} reviewed`;
   $("#pbar").style.width = (P.length ? (done / P.length) * 100 : 0) + "%";
 }
 let tt;
@@ -578,13 +611,16 @@ function setView(v) {
 }
 
 // ---------- wiring ----------
-$("#stats").textContent = `${DATA.totalFiles} files · ${DATA.totalPairs} pairs share code · scanned in ${DATA.seconds} s`;
+$("#stats").innerHTML = `<span class="k">${DATA.totalFiles.toLocaleString()}</span> files · <span class="k">${DATA.totalPairs.toLocaleString()}</span> pairs share code · scanned in <span class="k">${DATA.seconds} s</span>`;
 $("#q").oninput = (e) => { S.q = e.target.value; renderList(); };
 $("#fs").onchange = (e) => { S.fs = e.target.value; renderList(); };
 $("#fb").onchange = (e) => { S.fb = e.target.value; renderList(); };
 $("#tPairs").onclick = () => setView("pairs");
 $("#tFiles").onclick = () => setView("files");
 $("#export").onclick = exportCsv;
+function resize(step) { setCode(codePx + step); if (S.frag >= 0) jump(S.frag); toast(`Code size ${codePx}px`); }
+$("#codeDown").onclick = () => resize(-1);
+$("#codeUp").onclick = () => resize(1);
 $("#helpBtn").onclick = () => $("#help").showModal();
 $("#list").onclick = (e) => {
   const r = e.target.closest(".row");
@@ -618,6 +654,8 @@ document.addEventListener("keydown", (e) => {
     "]": () => frags.length && jump((S.frag + 1) % frags.length),
     "[": () => frags.length && jump((S.frag - 1 + frags.length) % frags.length),
     "/": () => $("#q").focus(), "?": () => $("#help").showModal(), t: toggleTheme,
+    h: () => { setHl(HL[(HL.indexOf(root.dataset.hl) + 1) % HL.length]); toast("Highlight: " + root.dataset.hl); },
+    "-": () => resize(-1), "=": () => resize(1), "+": () => resize(1),
   };
   const fn = keys[e.key.toLowerCase()] || keys[e.key];
   if (fn) { e.preventDefault(); fn(); }
