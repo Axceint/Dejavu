@@ -28,16 +28,22 @@ K = 5  # tokens per fingerprint
 MATCH_TOP = 100  # shortcut: line matches only for the top 100 pairs, raise if the UI shows more
 
 
+def _junk(name):  # macOS zip metadata (__MACOSX/, ._file) is binary, not a submission
+    return "__MACOSX" in Path(name).parts or Path(name).name.startswith("._")
+
+
 def load(path):
     path, files = Path(path), {}
+    if not path.exists():
+        raise FileNotFoundError(path)
     if path.suffix.lower() == ".zip":
         with zipfile.ZipFile(path) as z:
             for n in z.namelist():
-                if Path(n).suffix.lower() in LANG:
+                if Path(n).suffix.lower() in LANG and not _junk(n):
                     files[n] = z.read(n).decode("utf-8", "replace")
     else:
         for p in sorted(path.rglob("*")):
-            if p.is_file() and p.suffix.lower() in LANG:
+            if p.is_file() and p.suffix.lower() in LANG and not _junk(p.relative_to(path)):
                 files[p.relative_to(path).as_posix()] = p.read_text("utf-8", "replace")
     return files
 
@@ -123,7 +129,10 @@ def scan(path):
                 continue
             inter = sum(w[h] for h in shared)
             union = total[a] + total[b] - inter
-            score = 0.5 * (inter / union + inter / min(total[a], total[b]))  # Jaccard + containment
+            # Containment rewards a copy padded with extra code, but its denominator never drops below half
+            # the bigger file, so a tiny boilerplate file can't look "fully contained" in a real solution.
+            small = max(min(total[a], total[b]), 0.5 * max(total[a], total[b]))
+            score = 0.5 * (inter / union + inter / small)
             pairs.append({"a": a, "b": b, "score": round(score, 4), "shared": shared})
     pairs.sort(key=lambda p: -p["score"])
     for i, p in enumerate(pairs):
