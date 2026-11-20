@@ -5,18 +5,20 @@ from bisect import bisect_left
 from pathlib import Path
 
 from .aistyle import ai_style
-from .engine import LANG
+from .engine import LANG, _quiet
 from .explain import context, evidence
 
 TEMPLATE = Path(__file__).with_name("review.html")
 LIMIT = 500  # shortcut: the app lists the top 500 pairs; reviewers never get that far, the CSV has all
 
 
-def payload(r, limit=LIMIT):
+def payload(r, limit=LIMIT, progress=_quiet):
+    """progress(stage, done, total) reports stage "explain": evidence for top pairs, then per-file comment checks."""
     pairs = r["pairs"][:limit]
     names = sorted({n for p in pairs for n in (p["a"], p["b"])} | set(r["flags"]))
     idx = {n: i for i, n in enumerate(names)}
     ctx = context(r)
+    steps, done = sum(1 for p in pairs if p["matches"]) + len(names), 0
     out = []
     for rank, p in enumerate(pairs, 1):
         d = {"rank": rank, "a": idx[p["a"]], "b": idx[p["b"]], "score": p["score"], "m": p["matches"]}
@@ -25,15 +27,22 @@ def payload(r, limit=LIMIT):
             d["cov"] = [round(c, 3) for c in e["coverage"]]
             d["ren"] = e["renames"]
             d["verb"] = e["verbatim"]
+            done += 1
+            progress("explain", done, steps)
         d["beats"] = round(bisect_left(ctx["scores"], p["score"]) / max(len(ctx["scores"]) - 1, 1), 3)
         out.append(d)
+    files = []
+    for n in names:
+        lang = LANG[Path(n).suffix.lower()]
+        files.append({"name": n, "lang": lang, "src": r["files"][n], "flags": r["flags"].get(n, []),
+                      "ai": ai_style(r["files"][n], lang)})
+        done += 1
+        progress("explain", done, steps)
     # stable id per batch, so review decisions saved in the browser come back for the same upload
     key = zlib.crc32(json.dumps([names, [p["score"] for p in pairs]]).encode())
     return {
         "id": f"{key:08x}",
-        "files": [{"name": n, "lang": LANG[Path(n).suffix.lower()], "src": r["files"][n],
-                   "flags": r["flags"].get(n, []), "ai": ai_style(r["files"][n], LANG[Path(n).suffix.lower()])}
-                  for n in names],
+        "files": files,
         "pairs": out,
         "totalPairs": len(r["pairs"]),
         "totalFiles": len(r["files"]),

@@ -37,19 +37,29 @@ def _junk(name):  # macOS zip metadata (__MACOSX/, ._file) is binary, not a subm
     return "__MACOSX" in Path(name).parts or Path(name).name.startswith("._")
 
 
-def load(path):
+def _quiet(stage, done, total):
+    pass
+
+
+def load(path, progress=_quiet):
+    """progress(stage, done, total) is called with stage "read" after each file, for a progress bar."""
     path, files = Path(path), {}
     if not path.exists():
         raise FileNotFoundError(path)
     if path.suffix.lower() == ".zip":
         with zipfile.ZipFile(path) as z:
-            for n in z.namelist():
-                if Path(n).suffix.lower() in LANG and not _junk(n):
-                    files[n] = z.read(n).decode("utf-8", "replace")
+            names = [n for n in z.namelist() if Path(n).suffix.lower() in LANG and not _junk(n)]
+            for i, n in enumerate(names, 1):
+                files[n] = z.read(n).decode("utf-8", "replace")
+                progress("read", i, len(names))
     else:
-        for p in sorted(path.rglob("*")):
-            if p.is_file() and p.suffix.lower() in LANG and not _junk(p.relative_to(path)):
-                files[p.relative_to(path).as_posix()] = p.read_text("utf-8", "replace")
+        paths = [p for p in sorted(path.rglob("*"))
+                 if p.is_file() and p.suffix.lower() in LANG and not _junk(p.relative_to(path))]
+        for i, p in enumerate(paths, 1):
+            files[p.relative_to(path).as_posix()] = p.read_text("utf-8", "replace")
+            progress("read", i, len(paths))
+    if not files:
+        progress("read", 0, 0)
     return files
 
 
@@ -137,12 +147,16 @@ def _blocks(fa, fb, shared):
     return out
 
 
-def scan(path, base=None):
-    """base: starter code every student got (file, folder or .zip). Code found in it is ignored, like MOSS -b."""
+def scan(path, base=None, progress=_quiet):
+    """base: starter code every student got (file, folder or .zip). Code found in it is ignored, like MOSS -b.
+    progress(stage, done, total) reports stages "read", "parse" and "compare" for a progress bar."""
     start = time.perf_counter()
-    files = load(path)
+    files = load(path, progress)
     fp = lambda n, src: fingerprints(tokens(_clean(src), LANG[Path(n).suffix.lower()]))
-    fps = {n: fp(n, src) for n, src in files.items()}
+    fps = {}
+    for i, (n, src) in enumerate(files.items(), 1):
+        fps[n] = fp(n, src)
+        progress("parse", i, len(files))
     if base:
         bp = Path(base)
         bfiles = {bp.name: bp.read_text("utf-8", "replace")} if bp.suffix.lower() in LANG else load(bp)
@@ -154,12 +168,16 @@ def scan(path, base=None):
     by_lang = {}
     for n in files:
         by_lang.setdefault(LANG[Path(n).suffix.lower()], []).append(n)
+    todo, done = sum(len(v) * (len(v) - 1) // 2 for v in by_lang.values()), 0
     for names in by_lang.values():
         df = Counter(h for n in names for h in fps[n])
         # Rare shared code is strong evidence; code everyone writes (I/O, loops) is weak.
         w = {h: math.log(1 + len(names) / c) for h, c in df.items()}
         total = {n: sum(w[h] for h in fps[n]) for n in names}
         for a, b in combinations(names, 2):
+            done += 1
+            if done % 2000 == 0:  # 45k pairs for 300 files; every pair would flood the progress bar
+                progress("compare", done, todo)
             shared = fps[a].keys() & fps[b].keys()
             if not shared:
                 continue
@@ -170,6 +188,7 @@ def scan(path, base=None):
             small = max(min(total[a], total[b]), 0.5 * max(total[a], total[b]))
             score = 0.5 * (inter / union + inter / small)
             pairs.append({"a": a, "b": b, "score": round(score, 4), "shared": shared})
+    progress("compare", todo, todo)
     pairs.sort(key=lambda p: -p["score"])
     for i, p in enumerate(pairs):
         shared = p.pop("shared")
