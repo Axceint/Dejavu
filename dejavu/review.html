@@ -228,6 +228,8 @@ function setTheme(t, save) {
   $("#themeBtn").setAttribute("aria-label", label);
   $("#themeBtn").title = label + " (T)";
   if (save) { try { localStorage.setItem("dejavu:theme", t); } catch (e) { /* not saved: still applies now */ } }
+  // Embedded in the Streamlit app: tell the host page, whose CSS repaints the frame around us to match.
+  try { if (window.parent !== window) window.parent.document.documentElement.dataset.dejavuTheme = t; } catch (e) { /* host on another origin keeps its own theme */ }
 }
 const toggleTheme = () => setTheme(root.dataset.theme === "dark" ? "light" : "dark", true);
 setTheme(root.dataset.theme, false);
