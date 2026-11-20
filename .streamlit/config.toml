@@ -1,0 +1,6 @@
+[theme]
+# one accent, matching the highlight on matched code
+primaryColor = "#B45309"
+
+[server]
+maxUploadSize = 200
