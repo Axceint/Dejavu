@@ -36,7 +36,7 @@ def run(path, base, label):
     except (FileNotFoundError, ValueError, zipfile.BadZipFile) as e:
         st.session_state.err = f"Couldn't scan {label}: {e}"
         return
-    st.session_state.update(html=render(payload(r)), csv=all_pairs_csv(r), label=label, err=None)
+    st.session_state.update(data=payload(r), csv=all_pairs_csv(r), label=label, err=None)
 
 
 def upload_form(key):
@@ -56,8 +56,10 @@ def upload_form(key):
         st.rerun()
 
 
-html = st.session_state.get("html")
-bar = st.columns([5, 1.2, 1.2, 1.4, 1.2], vertical_alignment="center")
+data = st.session_state.get("data")
+# rendered per run so the review screen opens in the frame's current light/dark theme
+html = render(data, st.context.theme.type) if data else None
+bar =st.columns([5, 1.2, 1.2, 1.4, 1.2], vertical_alignment="center")
 label = st.session_state.get("label", "").replace("`", "'")  # upload name is untrusted: keep it inline code
 bar[0].markdown("**Dejavu** · code similarity review" + (f" · `{label}`" if html else ""))
 if html:

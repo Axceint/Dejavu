@@ -4,8 +4,19 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Dejavu review</title>
+<script>
+// Set the theme before first paint so there's no flash: saved choice, then the host app's theme, then the OS.
+const HOST_THEME = /*__THEME__*/null;
+(() => {
+  let t = null;
+  try { t = localStorage.getItem("dejavu:theme"); } catch (e) { /* storage blocked: fall through */ }
+  document.documentElement.dataset.theme = t === "light" || t === "dark" ? t
+    : HOST_THEME || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+})();
+</script>
 <style>
 :root{
+  color-scheme:light;
   --bg:#fafaf9;--panel:#fff;--sunk:#f3f3f1;--line:#e3e3df;--line2:#cfcfca;
   --text:#1b1b19;--muted:#65655f;--faint:#93938c;
   --accent:#b45309;--match:rgba(234,160,20,.15);--hot:rgba(234,160,20,.42);--verb:rgba(234,160,20,.30);
@@ -14,13 +25,14 @@
   --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
   --mono:ui-monospace,"SF Mono","Cascadia Mono","JetBrains Mono",Consolas,monospace;
 }
-@media (prefers-color-scheme:dark){:root{
+:root[data-theme=dark]{
+  color-scheme:dark;
   --bg:#141413;--panel:#1b1b1a;--sunk:#222220;--line:#2e2e2b;--line2:#3d3d39;
   --text:#ecece8;--muted:#a3a39b;--faint:#74746d;
   --accent:#f0a33a;--match:rgba(240,163,58,.13);--hot:rgba(240,163,58,.36);--verb:rgba(240,163,58,.26);
   --copy:#ff8a80;--copy-bg:#3a1a17;--clear:#6fd08c;--clear-bg:#15301e;
   --kw:#8ab4f8;--str:#8fd19e;--com:#7c7c75;--num:#f2a96b;--rn:#f0a33a;
-}}
+}
 *{box-sizing:border-box}
 html,body{height:100%;margin:0}
 body{background:var(--bg);color:var(--text);font:13px/1.45 var(--sans);-webkit-font-smoothing:antialiased}
@@ -39,7 +51,9 @@ kbd{font:11px/1 var(--mono);padding:2px 4px;border:1px solid var(--line2);border
 .top .sp{flex:1}
 .btn{border:1px solid var(--line2);background:var(--panel);border-radius:4px;padding:4px 10px;line-height:20px}
 .btn:hover{background:var(--sunk)}
-.btn.icon{width:30px;padding:4px 0}
+.btn.icon{width:30px;padding:4px 0;display:inline-flex;align-items:center;justify-content:center}
+.btn.icon svg{width:16px;height:20px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round}
+[data-theme=dark] .i-moon,[data-theme=light] .i-sun{display:none}
 
 .side{display:flex;flex-direction:column;min-height:0;border-right:1px solid var(--line);background:var(--panel)}
 .seg{display:flex;gap:4px;padding:8px 12px 0}
@@ -111,7 +125,7 @@ button.chip:hover{border-color:var(--text)}
 .ln.m{cursor:pointer}
 .kw{color:var(--kw)}.str{color:var(--str)}.com{color:var(--com);font-style:italic}.num{color:var(--num)}
 .rn{color:var(--rn);text-decoration:underline dotted;text-underline-offset:3px}
-.hzc{background:var(--copy);color:#fff;border-radius:2px;padding:0 1px}
+.hzc{background:var(--copy);color:var(--panel);border-radius:2px;padding:0 1px}
 .legend{display:flex;gap:16px;padding:0 16px 8px;color:var(--faint);font-size:12px}
 .legend i{display:inline-block;width:10px;height:10px;vertical-align:-1px;margin-right:4px;border-radius:2px}
 .nodata{margin:auto;color:var(--muted);text-align:center;max-width:360px}
@@ -144,6 +158,10 @@ dialog td:first-child{width:110px}
     <span class="prog"><span id="prog" aria-live="polite"></span><span class="pbar" aria-hidden="true"><i id="pbar"></i></span></span>
     <span class="sp"></span>
     <button class="btn" id="export" type="button">Export CSV</button>
+    <button class="btn icon" id="themeBtn" type="button">
+      <svg class="i-moon" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 9.8A5.6 5.6 0 0 1 6.2 2.5a5.6 5.6 0 1 0 7.3 7.3Z"/></svg>
+      <svg class="i-sun" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="2.8"/><path d="M8 1.2v1.6M8 13.2v1.6M1.2 8h1.6M13.2 8h1.6M3.2 3.2l1.1 1.1M11.7 11.7l1.1 1.1M3.2 12.8l1.1-1.1M11.7 4.3l1.1-1.1"/></svg>
+    </button>
     <button class="btn icon" id="helpBtn" type="button" aria-label="Keyboard shortcuts">?</button>
   </header>
   <aside class="side" aria-label="Pairs and files">
@@ -181,6 +199,7 @@ dialog td:first-child{width:110px}
     <tr><td><kbd>[</kbd> <kbd>]</kbd></td><td>Previous / next matching fragment</td></tr>
     <tr><td><kbd>S</kbd></td><td>Sync scrolling on or off</td></tr>
     <tr><td><kbd>/</kbd></td><td>Filter by file name</td></tr>
+    <tr><td><kbd>T</kbd></td><td>Light or dark theme</td></tr>
   </table>
   <p style="color:var(--muted);margin:12px 0">Decisions and notes are saved in this browser only. Export CSV to share them.</p>
   <form method="dialog"><button class="btn">Close</button></form>
@@ -201,6 +220,25 @@ const band = (s) => BANDS.find((b) => s >= b[0]);
 const pct = (x) => Math.round(x * 100) + "%";
 
 const main = $("#main");
+// ---------- theme (the attribute is already set in <head>; this keeps the button and storage in step) ----------
+const root = document.documentElement;
+function setTheme(t, save) {
+  root.dataset.theme = t;
+  const label = `Switch to ${t === "dark" ? "light" : "dark"} theme`;
+  $("#themeBtn").setAttribute("aria-label", label);
+  $("#themeBtn").title = label + " (T)";
+  if (save) { try { localStorage.setItem("dejavu:theme", t); } catch (e) { /* not saved: still applies now */ } }
+}
+const toggleTheme = () => setTheme(root.dataset.theme === "dark" ? "light" : "dark", true);
+setTheme(root.dataset.theme, false);
+$("#themeBtn").onclick = toggleTheme;
+// With no saved choice and no host theme, keep following the OS if it changes.
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (e) => {
+  let saved = null;
+  try { saved = localStorage.getItem("dejavu:theme"); } catch (err) { /* treat as unsaved */ }
+  if (!saved && !HOST_THEME) setTheme(e.matches ? "dark" : "light", false);
+});
+
 if (!DATA || !DATA.pairs) { main.innerHTML = '<p class="nodata">No scan loaded.</p>'; return; }
 const F = DATA.files, P = DATA.pairs;
 const KEY = "dejavu:" + DATA.id;
@@ -552,7 +590,7 @@ document.addEventListener("keydown", (e) => {
     s: () => { S.sync = !S.sync; toast(S.sync ? "Sync scrolling on" : "Sync scrolling off"); },
     "]": () => frags.length && jump((S.frag + 1) % frags.length),
     "[": () => frags.length && jump((S.frag - 1 + frags.length) % frags.length),
-    "/": () => $("#q").focus(), "?": () => $("#help").showModal(),
+    "/": () => $("#q").focus(), "?": () => $("#help").showModal(), t: toggleTheme,
   };
   const fn = keys[e.key.toLowerCase()] || keys[e.key];
   if (fn) { e.preventDefault(); fn(); }
