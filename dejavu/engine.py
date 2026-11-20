@@ -17,9 +17,11 @@ NAME = {"identifier", "type_identifier", "field_identifier", "namespace_identifi
 LITERAL = {"string", "integer", "float", "true", "false", "none", "number_literal", "string_literal",
            "char_literal", "raw_string_literal", "concatenated_string", "decimal_integer_literal",
            "decimal_floating_point_literal", "hex_integer_literal", "character_literal", "null_literal", "nullptr"}
-COMMENT = {"comment", "line_comment", "block_comment"}
+# Comments and qualifiers (const, static, final, public...) carry no logic.
+SKIP = {"comment", "line_comment", "block_comment", "type_qualifier", "storage_class_specifier", "modifiers"}
 LOOP = {"for_statement", "while_statement", "do_statement", "for_range_loop", "enhanced_for_statement"}
-LOOP_KEYWORDS = {"for", "while", "do"}
+# Loop keywords are covered by LOOP; braces/semicolons vary with style (`if (x) y;` vs `if (x) { y; }`).
+DROP_LEAF = {"for", "while", "do", "{", "}", ";"}
 FUNC = {"function_definition", "method_declaration", "constructor_declaration"}
 CALL = {"call": "function", "call_expression": "function", "method_invocation": "name"}
 K = 5  # tokens per fingerprint
@@ -61,7 +63,7 @@ def tokens(src, lang):
     while stack:
         node, fn = stack.pop()
         t, line = node.type, node.start_point[0] + 1
-        if t in COMMENT:
+        if t in SKIP:
             continue
         if t in FUNC:
             fn = _fn_name(node)
@@ -74,10 +76,14 @@ def tokens(src, lang):
         if t in LITERAL:
             out.append(("LIT", line))
             continue
+        if t == "update_expression":  # ++x and x++ become the same token
+            out.append(("UPD", line))
+            stack.extend((c, fn) for c in reversed(node.named_children))
+            continue
         if node.child_count == 0:
             if t in NAME:
                 out.append(("ID", line))
-            elif t not in LOOP_KEYWORDS:
+            elif t not in DROP_LEAF:
                 out.append((t, line))
             continue
         stack.extend((c, fn) for c in reversed(node.children))
