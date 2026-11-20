@@ -4,6 +4,7 @@ import zlib
 from bisect import bisect_left
 from pathlib import Path
 
+from .aistyle import ai_style
 from .engine import LANG
 from .explain import context, evidence
 
@@ -31,7 +32,8 @@ def payload(r, limit=LIMIT):
     return {
         "id": f"{key:08x}",
         "files": [{"name": n, "lang": LANG[Path(n).suffix.lower()], "src": r["files"][n],
-                   "flags": r["flags"].get(n, [])} for n in names],
+                   "flags": r["flags"].get(n, []), "ai": ai_style(r["files"][n], LANG[Path(n).suffix.lower()])}
+                  for n in names],
         "pairs": out,
         "totalPairs": len(r["pairs"]),
         "totalFiles": len(r["files"]),
