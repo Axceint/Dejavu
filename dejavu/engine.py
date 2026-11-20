@@ -137,10 +137,19 @@ def _blocks(fa, fb, shared):
     return out
 
 
-def scan(path):
+def scan(path, base=None):
+    """base: starter code every student got (file, folder or .zip). Code found in it is ignored, like MOSS -b."""
     start = time.perf_counter()
     files = load(path)
-    fps = {n: fingerprints(tokens(_clean(src), LANG[Path(n).suffix.lower()])) for n, src in files.items()}
+    fp = lambda n, src: fingerprints(tokens(_clean(src), LANG[Path(n).suffix.lower()]))
+    fps = {n: fp(n, src) for n, src in files.items()}
+    if base:
+        bp = Path(base)
+        bfiles = {bp.name: bp.read_text("utf-8", "replace")} if bp.suffix.lower() in LANG else load(bp)
+        if not bfiles:
+            raise ValueError(f"no .py/.cpp/.java starter code found in {base}")
+        skip = {h for n, src in bfiles.items() for h in fp(n, src)}
+        fps = {n: {h: v for h, v in f.items() if h not in skip} for n, f in fps.items()}
     pairs = []
     by_lang = {}
     for n in files:

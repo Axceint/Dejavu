@@ -109,11 +109,13 @@ py -3.12 -m venv .venv
 
 Input is a folder or a `.zip`. Language comes from the extension: `.py`, `.java`, `.cpp .cc .cxx .h .hpp`.
 
+**Starter code:** if every student got the same template, pass it with `--base starter.py` (a file, folder or `.zip`). Any code found in it is ignored. In our test, two independent solutions sharing a template scored 0.488 without `--base` and 0.011 with it.
+
 From Python:
 
 ```python
 from dejavu.engine import scan
-result = scan("submissions.zip")
+result = scan("submissions.zip", base="starter.py")  # base is optional
 # {"files": {name: source}, "seconds": float,
 #  "pairs": [{"a", "b", "score", "matches": [[[a_start, a_end], [b_start, b_end]], ...]}],
 #  "flags": {name: [{"line", "char", "name"}, ...]}}   # only files with hidden characters
@@ -145,7 +147,7 @@ Universities have used MOSS, JPlag and Dolos for years. They all compare structu
 | Loop ↔ recursion | No rule we found | No rule we found | No rule we found | **Both become `LOOP`** |
 | Style-only rewrites (`++i`/`i++`, braces, `const`) | Partly | Partly | Partly | **Normalized** |
 | Code everyone writes | Hides passages found in more than N files (`-m`) | Base-code option | See its docs | **Rarity weighting**: shared rare code counts more |
-| Instructor template code | Base file (`-b`) | Base code (`-bc`) | See its docs | Not yet (planned) |
+| Instructor template code | Base file (`-b`) | Base code (`-bc`) | See its docs | **Base code (`--base`)** |
 | Hidden characters | Not documented | Not documented | Not documented | **Flagged and removed** |
 | Runs | Stanford web service | Java, local | Node.js, local or web | Python, local or web app |
 
@@ -155,7 +157,6 @@ Universities have used MOSS, JPlag and Dolos for years. They all compare structu
 
 - Only files in the same language are compared, so a Python solution translated into Java is not caught.
 - The test set is small (3 problems) and hand-written. Thresholds may need tuning on the real data.
-- Starter code given to every student isn't removed yet. Rarity weighting lowers its weight but doesn't zero it.
 - A heavy rewrite that changes the algorithm itself, such as a hash map replaced by sorting, is treated as a different solution. That is by design.
 
 ## AI-use disclosure
