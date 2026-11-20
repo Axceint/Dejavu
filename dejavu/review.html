@@ -21,7 +21,7 @@ const HOST_THEME = /*__THEME__*/null;
   --text:#1b1b19;--muted:#65655f;--faint:#93938c;
   --accent:#b45309;--match:rgba(234,160,20,.15);--hot:rgba(234,160,20,.42);--verb:rgba(234,160,20,.30);
   --copy:#b42318;--copy-bg:#fdeceb;--clear:#1a7f37;--clear-bg:#e7f4eb;
-  --kw:#1d4f91;--str:#1f6f43;--com:#8b8b84;--num:#9a4a12;--rn:#b45309;
+  --kw:#1d4f91;--str:#1f6f43;--com:#8b8b84;--num:#9a4a12;--rn:#b45309;--ai:#0e7490;
   --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
   --mono:ui-monospace,"SF Mono","Cascadia Mono","JetBrains Mono",Consolas,monospace;
 }
@@ -31,7 +31,7 @@ const HOST_THEME = /*__THEME__*/null;
   --text:#ecece8;--muted:#a3a39b;--faint:#74746d;
   --accent:#f0a33a;--match:rgba(240,163,58,.13);--hot:rgba(240,163,58,.36);--verb:rgba(240,163,58,.26);
   --copy:#ff8a80;--copy-bg:#3a1a17;--clear:#6fd08c;--clear-bg:#15301e;
-  --kw:#8ab4f8;--str:#8fd19e;--com:#7c7c75;--num:#f2a96b;--rn:#f0a33a;
+  --kw:#8ab4f8;--str:#8fd19e;--com:#7c7c75;--num:#f2a96b;--rn:#f0a33a;--ai:#5fc4d6;
 }
 *{box-sizing:border-box}
 html,body{height:100%;margin:0}
@@ -84,7 +84,7 @@ kbd{font:11px/1 var(--mono);padding:2px 4px;border:1px solid var(--line2);border
 .empty{padding:24px 12px;color:var(--muted)}
 .empty button{margin-top:8px}
 
-.main{display:flex;flex-direction:column;min-height:0;min-width:0}
+.main{display:flex;flex-direction:column;min-height:0;min-width:0;overflow:auto}
 .dh{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;padding:12px 16px 8px}
 .dh h1{font-size:15px;font-weight:600;margin:0;min-width:0;overflow-wrap:anywhere}
 .dh h1 .x{color:var(--faint);font-weight:400;padding:0 4px}
@@ -98,7 +98,8 @@ kbd{font:11px/1 var(--mono);padding:2px 4px;border:1px solid var(--line2);border
 
 .why{margin:0 16px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel)}
 .why summary{padding:6px 12px;cursor:pointer;color:var(--muted);font-weight:600;list-style-position:inside}
-.facts{display:grid;grid-template-columns:150px minmax(0,1fr);gap:6px 16px;padding:4px 12px 10px;margin:0}
+.facts{display:grid;grid-template-columns:150px minmax(0,1fr);gap:6px 16px;padding:4px 12px 10px;margin:0;
+  max-height:30vh;overflow:auto} /* long evidence scrolls itself instead of squeezing the code panes */
 .facts dt{color:var(--muted)}
 .facts dd{margin:0;min-width:0}
 .chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
@@ -109,7 +110,7 @@ button.chip:hover{border-color:var(--text)}
 .sw[aria-pressed=true]{border-color:var(--accent);color:var(--accent)}
 .caveat{grid-column:1/-1;color:var(--faint);font-size:12px;margin-top:2px}
 
-.panes{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 16px 12px}
+.panes{flex:1;min-height:240px;display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 16px 12px}
 .pane{display:flex;flex-direction:column;min-height:0;min-width:0;border:1px solid var(--line);border-radius:6px;background:var(--panel);overflow:hidden}
 .pane header{display:flex;gap:8px;align-items:baseline;padding:6px 10px;border-bottom:1px solid var(--line);background:var(--sunk)}
 .pane header .s{font-weight:700;font-family:var(--mono)}
@@ -122,6 +123,9 @@ button.chip:hover{border-color:var(--text)}
 .ln.m{background:var(--match)}
 .ln.v{background:var(--verb)}
 .ln.f{background:var(--hot)}
+.ln.ai{box-shadow:inset 3px 0 0 var(--ai)}
+.ln.ai .com,.ln.ai .str{color:var(--ai)}
+.tag.ai{color:var(--ai);border-color:currentColor}
 .ln.m{cursor:pointer}
 .kw{color:var(--kw)}.str{color:var(--str)}.com{color:var(--com);font-style:italic}.num{color:var(--num)}
 .rn{color:var(--rn);text-decoration:underline dotted;text-underline-offset:3px}
@@ -218,6 +222,7 @@ const vis = (s) => esc(s).replace(HZ, (c) => `<span class="hzc" title="U+${c.cha
 const BANDS = [[0.4, "high", "Review first"], [0.2, "mid", "Worth a look"], [0, "low", "Low"]];
 const band = (s) => BANDS.find((b) => s >= b[0]);
 const pct = (x) => Math.round(x * 100) + "%";
+const aiOf = (f) => f.ai || []; // reports saved before AI-style flags existed have no "ai" field
 
 const main = $("#main");
 // ---------- theme (the attribute is already set in <head>; this keeps the button and storage in step) ----------
@@ -316,7 +321,8 @@ function renderList() {
       const p = P[i], b = band(p.score), s = status(p);
       const hz = F[p.a].flags.length || F[p.b].flags.length;
       const tags = (s !== "open" ? `<span class="tag ${s}">${s === "copy" ? "Likely copy" : "Not a copy"}</span>` : "")
-        + (hz ? '<span class="tag hz">Hidden chars</span>' : "") + (dec[pk(p)] && dec[pk(p)].note ? '<span class="tag">Note</span>' : "");
+        + (hz ? '<span class="tag hz">Hidden chars</span>' : "")
+        + (aiOf(F[p.a]).length || aiOf(F[p.b]).length ? '<span class="tag ai">AI-style comments</span>' : "") + (dec[pk(p)] && dec[pk(p)].note ? '<span class="tag">Note</span>' : "");
       return `<li><button type="button" class="row" data-i="${i}" aria-current="${i === S.sel}">
         <span class="rk">${p.rank}</span>
         <span class="nm"><span class="fn">${nameHtml(F[p.a].name)}</span><span class="fn">${nameHtml(F[p.b].name)}</span></span>
@@ -342,6 +348,7 @@ function renderFiles(list) {
     const f = F[x.fi], other = x.best ? F[x.best.a === x.fi ? x.best.b : x.best.a].name : "none";
     const tags = (x.copies ? `<span class="tag copy">${x.copies} likely ${x.copies > 1 ? "copies" : "copy"}</span>` : "")
       + (f.flags.length ? '<span class="tag hz">Hidden chars</span>' : "")
+      + (aiOf(f).length ? `<span class="tag ai">${aiOf(f).length} AI-style comment${aiOf(f).length > 1 ? "s" : ""}</span>` : "")
       + (x.n ? `<span class="tag">${x.n} pair${x.n > 1 ? "s" : ""} ≥ 0.20</span>` : "");
     return `<li><button type="button" class="row" data-f="${x.fi}">
       <span class="rk">${f.lang === "python" ? "py" : f.lang}</span>
@@ -378,6 +385,12 @@ function renderDetail() {
   }
   const hz = [[A, "A"], [B, "B"]].filter(([f]) => f.flags.length);
   if (hz.length) facts += `<dt>Hidden characters</dt><dd>${hz.map(([f, s]) => `${s}: ${f.flags.length} on line${f.flags.length > 1 ? "s" : ""} ${[...new Set(f.flags.map((x) => x.line))].slice(0, 6).join(", ")}`).join("; ")}. Often left by text pasted from a chat tool. A hint, not proof.</dd>`;
+  const ai = [[A, "A"], [B, "B"]].filter(([f]) => aiOf(f).length);
+  if (ai.length) {
+    const why = [...new Set(ai.flatMap(([f]) => aiOf(f).flatMap((c) => c.reasons)))];
+    facts += `<dt>AI-style comments</dt><dd>${ai.map(([f, s]) => `${s}: ${aiOf(f).length}`).join(" · ")}. Signs: ${esc(why.join(", "))}. A style hint, not proof: careful students write polished comments too.
+      <div class="chips">${ai.flatMap(([f, s]) => aiOf(f).slice(0, 6).map((c) => `<button type="button" class="chip" data-ai="${s}" data-line="${c.a}" title="${esc(c.reasons.join(", "))}">${s} ${c.a}${c.b > c.a ? "–" + c.b : ""}</button>`)).join("")}</div></dd>`;
+  }
   facts += `<p class="caveat">This explains the score; it is not proof. Independent solutions to one task also share structure, so compare with other pairs from the same task.</p>`;
 
   main.innerHTML = `
@@ -391,7 +404,7 @@ function renderDetail() {
       <div class="meta">Score <b>${p.score.toFixed(2)}</b> · ${b[2]} · ${beats}</div>
     </div>
     <details class="why" open><summary>Why this pair ranks here</summary><dl class="facts">${facts}</dl></details>
-    <div class="legend" aria-hidden="true"><span><i style="background:var(--match)"></i>Same structure</span><span><i style="background:var(--verb)"></i>Identical rare line</span><span><i style="background:var(--hot)"></i>Selected fragment</span><span>Click a highlighted line to align both sides</span></div>
+    <div class="legend" aria-hidden="true"><span><i style="background:var(--match)"></i>Same structure</span><span><i style="background:var(--verb)"></i>Identical rare line</span><span><i style="background:var(--hot)"></i>Selected fragment</span><span><i style="background:var(--ai)"></i>AI-style comment</span><span>Click a highlighted line to align both sides</span></div>
     <div class="panes">
       ${[["A", A, p.cov ? p.cov[0] : null], ["B", B, p.cov ? p.cov[1] : null]].map(([s, f, c]) => `
         <section class="pane" aria-label="File ${s}"><header><span class="s">${s}</span><span class="n" title="${esc(f.name)}">${esc(f.name)}</span>
@@ -413,10 +426,12 @@ function paintCode(p) {
     const verb = new Set((p.verb || []).map((v) => v[vi]));
     const flag = {};
     f.flags.forEach((x) => { (flag[x.line] = flag[x.line] || []).push(`${x.char} ${x.name}`); });
+    const aiAt = {};
+    aiOf(f).forEach((c) => { for (let n = c.a; n <= c.b; n++) aiAt[n] = "AI-style comment: " + c.reasons.join(", "); });
     $("#code" + s).innerHTML = lines.map((h, i) => {
-      const n = i + 1, cls = (at[n].length ? " m" : "") + (verb.has(n) ? " v" : "");
+      const n = i + 1, cls = (at[n].length ? " m" : "") + (verb.has(n) ? " v" : "") + (aiAt[n] ? " ai" : "");
       const g = flag[n] ? `<span class="g" title="${esc(flag[n].join("; "))}">!</span>` : '<span class="g"></span>';
-      return `<div class="ln${cls}" data-n="${n}">${g}<span class="no">${n}</span><span>${h || " "}</span></div>`;
+      return `<div class="ln${cls}" data-n="${n}"${aiAt[n] ? ` title="${esc(aiAt[n])}"` : ""}>${g}<span class="no">${n}</span><span>${h || " "}</span></div>`;
     }).join("");
     lineEls[s] = [...document.querySelectorAll(`#code${s} .ln`)];
     fragAt[s] = at;
@@ -440,6 +455,15 @@ function align(la, lb) {
   S.offset = cB.scrollTop - cA.scrollTop;
   requestAnimationFrame(() => { lock = false; });
 }
+function showLine(s, n) { // scroll one pane to a line and flash it, without dragging the other pane along
+  const c = $("#code" + s), e = lineEls[s][n - 1];
+  if (!e) return;
+  lock = true;
+  c.scrollTop = Math.max(0, e.offsetTop - c.offsetTop - 48);
+  requestAnimationFrame(() => { lock = false; });
+  e.classList.add("f");
+  setTimeout(() => e.classList.remove("f"), 1200);
+}
 function jump(k) {
   const p = P[S.sel];
   if (!p.m || !p.m[k]) return;
@@ -456,6 +480,7 @@ function wireDetail(p, byLen) {
   if (rb) rb.onclick = toggleRen;
   main.querySelectorAll("[data-frag]").forEach((el) => { el.onclick = () => jump(+el.dataset.frag); });
   main.querySelectorAll("[data-va]").forEach((el) => { el.onclick = () => { mark([]); align(+el.dataset.va, +el.dataset.vb); }; });
+  main.querySelectorAll("[data-ai]").forEach((el) => { el.onclick = () => showLine(el.dataset.ai, +el.dataset.line); });
   ["A", "B"].forEach((s) => {
     const c = $("#code" + s), o = s === "A" ? "B" : "A";
     c.onmouseover = (e) => { const ln = e.target.closest(".ln"); if (ln) mark(fragAt[s][+ln.dataset.n] || []); };

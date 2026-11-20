@@ -6,7 +6,18 @@ from pathlib import Path
 from streamlit.testing.v1 import AppTest
 
 from dejavu.engine import scan
+from dejavu.aistyle import ai_style
 from dejavu.explain import verbatim
+
+# AI-style comments: terse human notes pass, chat-style and polished docstrings are flagged
+human = "# checks primality\nx = 1  # bump\n# loop over rows\n# TODO fix later\n"
+assert ai_style(human, "python") == [], ai_style(human, "python")
+chatty = ('def f(xs):\n    """Here\'s an optimized version' + chr(0x2014) + ' handles edge cases."""\n    return xs\n'
+          "# Step 1: read the input\n")
+got = ai_style(chatty, "python")
+assert [g["a"] for g in got] == [2, 4] and "chat-assistant phrasing" in got[0]["reasons"], got
+assert ai_style("int main() {\n  // Returns the sum of values[i] over all i.\n  return 0;\n}\n", "cpp")
+assert ai_style("int f() {\n  // returns sum\n  return 0;\n}\n", "cpp") == []
 from dejavu.report import payload, render
 
 # verbatim: rare identical lines count, boilerplate shared by 3+ files does not
@@ -20,6 +31,9 @@ data = payload(scan(Path(__file__).parent / "problems"))
 kind = lambda i: data["files"][i]["name"].split("/")[1].split(".")[0]
 assert all({kind(p["a"]), kind(p["b"])} == {"orig", "ai_rewrite"} for p in data["pairs"][:6])
 assert ("distance", "dist", 7) in data["pairs"][0]["ren"], data["pairs"][0]["ren"]
+# demo set: every AI rewrite has a flagged comment, no original or independent solution does
+for f in data["files"]:
+    assert bool(f["ai"]) == ("ai_rewrite" in f["name"]), (f["name"], f["ai"])
 
 # render: submission text can't close the data <script> block
 evil = {"id": "x", "files": [{"name": "a.py", "lang": "python", "src": "</script><script>alert(1)</script>",
