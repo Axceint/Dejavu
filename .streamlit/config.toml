@@ -1,6 +1,19 @@
-[theme]
-# one accent, matching the highlight on matched code
+# Same palette as the review screen (dejavu/review.html), so the frame matches in either theme.
+[theme.light]
 primaryColor = "#B45309"
+backgroundColor = "#FAFAF9"
+secondaryBackgroundColor = "#F3F3F1"
+textColor = "#1B1B19"
+borderColor = "#E3E3DF"
+codeBackgroundColor = "#F3F3F1"
+
+[theme.dark]
+primaryColor = "#F0A33A"
+backgroundColor = "#141413"
+secondaryBackgroundColor = "#222220"
+textColor = "#ECECE8"
+borderColor = "#2E2E2B"
+codeBackgroundColor = "#222220"
 
 [server]
 maxUploadSize = 200

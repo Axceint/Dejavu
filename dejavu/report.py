@@ -39,7 +39,9 @@ def payload(r, limit=LIMIT):
     }
 
 
-def render(data):
+def render(data, theme=None):
+    """theme: the host app's "light" or "dark", used until the reviewer picks one with the toggle."""
     # "<" escaped so code like "</script>" inside a submission can't close the data block
     blob = json.dumps(data, separators=(",", ":")).replace("<", "\\u003c")
-    return TEMPLATE.read_text("utf-8").replace("/*__DATA__*/null", blob, 1)
+    host = json.dumps(theme if theme in ("light", "dark") else None)
+    return TEMPLATE.read_text("utf-8").replace("/*__THEME__*/null", host, 1).replace("/*__DATA__*/null", blob, 1)

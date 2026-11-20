@@ -28,6 +28,10 @@ page = render(evil)
 assert "alert(1)</script>" not in page and "\\u003c/script>" in page
 blob = re.search(r"const DATA = (.*?);\n", page).group(1)
 assert json.loads(blob)["files"][0]["src"].startswith("</script>")
+# host theme: only "light"/"dark" pass through; anything else falls back to the reviewer's OS setting
+assert "const HOST_THEME = null;" in page
+assert 'const HOST_THEME = "dark";' in render(evil, "dark")
+assert "const HOST_THEME = null;" in render(evil, '"; alert(1); "')
 
 # Streamlit host: demo button embeds the review app
 at = AppTest.from_file("../app.py", default_timeout=60).run()
