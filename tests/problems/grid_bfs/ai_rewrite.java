@@ -1,0 +1,48 @@
+import java.util.ArrayDeque;
+import java.util.Arrays;
+import java.util.Deque;
+import java.util.Scanner;
+
+public class Main {
+    private static final int[] ROW_DELTA = {1, -1, 0, 0};
+    private static final int[] COL_DELTA = {0, 0, 1, -1};
+
+    private static boolean isOpen(String[] grid, int row, int col) {
+        return row >= 0 && row < grid.length && col >= 0 && col < grid[0].length() && grid[row].charAt(col) == '.';
+    }
+
+    /** BFS distance from the top-left to the bottom-right cell, or -1 if unreachable. */
+    static int shortestPath(String[] grid) {
+        int rows = grid.length, cols = grid[0].length();
+        int[][] distance = new int[rows][cols];
+        for (int[] line : distance) {
+            Arrays.fill(line, -1);
+        }
+        Deque<int[]> frontier = new ArrayDeque<>();
+        distance[0][0] = 0;
+        frontier.offer(new int[]{0, 0});
+        while (!frontier.isEmpty()) {
+            int[] cell = frontier.poll();
+            for (int dir = 0; dir < 4; dir++) {
+                int nextRow = cell[0] + ROW_DELTA[dir];
+                int nextCol = cell[1] + COL_DELTA[dir];
+                if (isOpen(grid, nextRow, nextCol) && distance[nextRow][nextCol] == -1) {
+                    distance[nextRow][nextCol] = distance[cell[0]][cell[1]] + 1;
+                    frontier.offer(new int[]{nextRow, nextCol});
+                }
+            }
+        }
+        return distance[rows - 1][cols - 1];
+    }
+
+    public static void main(String[] args) {
+        Scanner scanner = new Scanner(System.in);
+        int rows = scanner.nextInt();
+        scanner.nextInt();
+        String[] grid = new String[rows];
+        for (int i = 0; i < rows; i++) {
+            grid[i] = scanner.next();
+        }
+        System.out.println(shortestPath(grid));
+    }
+}
