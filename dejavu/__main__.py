@@ -11,10 +11,11 @@ s = sub.add_parser("scan", help="rank similar submission pairs in a folder or .z
 s.add_argument("path")
 s.add_argument("--top", type=int, default=20)
 s.add_argument("--json", help="write full result to this file")
+s.add_argument("--base", help="starter code every student got (file, folder or .zip); matches inside it are ignored")
 args = ap.parse_args()
 
 sys.stdout.reconfigure(errors="replace")  # Windows consoles can't print every character
-r = scan(args.path)
+r = scan(args.path, args.base)
 for p in r["pairs"][: args.top]:
     print(f'{p["score"]:.3f}  {p["a"]}  vs  {p["b"]}')
 for n, f in r["flags"].items():

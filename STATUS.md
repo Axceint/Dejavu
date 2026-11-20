@@ -14,7 +14,7 @@ Code Fuzion 2026 · H1 AI-Rewritten Code Plagiarism Detector. Rank Python/C++/Ja
 ## Engine interface (Akshit builds UI against this)
 ```python
 from dejavu.engine import scan
-result = scan("path/to/folder_or.zip")
+result = scan("path/to/folder_or.zip", base=None)  # base: optional starter code (file/folder/zip), ignored in scoring
 # result = {"files": {name: source_text}, "seconds": float,
 #           "pairs": [{"a": name, "b": name, "score": 0..1,
 #                      "matches": [[[a_start, a_end], [b_start, b_end]], ...]}],  # 1-based lines, sorted by score desc
@@ -23,7 +23,7 @@ result = scan("path/to/folder_or.zip")
 `matches` is filled for the top 100 pairs only. Fake data to build against: `sample_result.json`.
 
 ## Commands (repo root)
-- Scan: `.venv\Scripts\python -m dejavu scan <folder_or_zip> --top 20 --json out.json`
+- Scan: `.venv\Scripts\python -m dejavu scan <folder_or_zip> --top 20 --json out.json [--base starter.py]`
 - Self-test: `.venv\Scripts\python -m tests.test_engine`
 - 300-file timing: `.venv\Scripts\python -m tests.bench`
 

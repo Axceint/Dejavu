@@ -68,6 +68,26 @@ with tempfile.TemporaryDirectory() as d:
     r = scan(d)
     assert list(r["flags"]) == ["a.py"] and r["pairs"][0]["score"] > 0.99, "flagged, and the hidden char cannot hide the copy"
 
+# Starter code: two independent solutions that both include the same instructor template look like copies until
+# the template is passed as base.
+TEMPLATE = (Path(__file__).parent / "problems" / "grid_bfs" / "orig.py").read_text()
+with tempfile.TemporaryDirectory() as d:
+    d = Path(d)
+    (d / "subs").mkdir()
+    (d / "subs" / "a.py").write_text(TEMPLATE + "\n" + ORIG)
+    (d / "subs" / "b.py").write_text(TEMPLATE + "\n" + (Path(__file__).parent / "fixtures" / "independent.py").read_text())
+    (d / "starter.py").write_text(TEMPLATE)
+    without = pair(scan(d / "subs"), "a.py", "b.py")
+    with_base = pair(scan(d / "subs", base=d / "starter.py"), "a.py", "b.py")
+    print(f"shared template: {without:.3f} without base, {with_base:.3f} with base")
+    assert without > 0.4 and with_base < 0.1, "base code must not make independent solutions look copied"
+    (d / "notes.txt").write_text("hi")
+    try:
+        scan(d / "subs", base=d / "notes.txt")
+        raise AssertionError("base without code must raise")
+    except ValueError:
+        pass
+
 try:
     scan("does/not/exist")
     raise AssertionError("missing path must raise")
