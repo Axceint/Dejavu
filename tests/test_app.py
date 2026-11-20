@@ -68,5 +68,5 @@ assert "const DATA = {" in iframe.srcdoc and "grid_bfs/ai_rewrite.java" in ifram
 # the finished unzip/read and scan bars stay on the results page
 bars = [(b.proto.value, b.proto.text) for b in at.get("progress")]
 assert len(bars) == 2 and all(v == 100 for v, _ in bars), bars
-assert bars[0][1].startswith("Read 18 files") and bars[1][1].startswith("Scanned · 45 pairs share code"), bars
+assert bars[0][1].startswith("Read **18** files") and bars[1][1].startswith("Scanned · **45** pairs share code"), bars
 print("APP PASS")

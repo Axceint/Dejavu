@@ -74,8 +74,8 @@ def all_pairs_csv(r):
 
 DEMO_JOB = {"name": "demo set"}
 # Where each scan stage sits on the scanning bar, and its live label.
-STAGES = {"parse": (0.0, 0.6, "parsing {:,} / {:,} files"), "compare": (0.6, 0.85, "comparing {:,} / {:,} pairs"),
-          "explain": (0.85, 1.0, "preparing evidence {:,} / {:,}")}
+STAGES = {"parse": (0.0, 0.6, "parsing **{:,}** / {:,} files"), "compare": (0.6, 0.85, "comparing **{:,}** / {:,} pairs"),
+          "explain": (0.85, 1.0, "preparing evidence **{:,}** / {:,}")}
 
 
 def run(job, area):
@@ -97,7 +97,7 @@ def run(job, area):
         t["shown"] = now
         frac = done / total if total else 1.0
         if stage == "read":
-            read_bar.progress(frac, text=f"{now_verb} · {done:,} / {total:,} files")
+            read_bar.progress(frac, text=f"{now_verb} · **{done:,}** / {total:,} files")
         else:
             lo, hi, label = STAGES[stage]
             scan_bar.progress(lo + (hi - lo) * frac, text="Scanning · " + label.format(done, total))
@@ -121,8 +121,8 @@ def run(job, area):
     read_end = t["read"] or end
     st.session_state.update(
         data=data, csv=all_pairs_csv(r), label=job["name"], err=None,
-        phases=[f"{done_verb} {len(r['files']):,} files · {read_end - t['start']:.2f} s",
-                f"Scanned · {len(r['pairs']):,} pairs share code · {end - read_end:.2f} s"])
+        phases=[f"{done_verb} **{len(r['files']):,}** files · **{read_end - t['start']:.2f} s**",
+                f"Scanned · **{len(r['pairs']):,}** pairs share code · **{end - read_end:.2f} s**"])
 
 
 def upload_form(key):
