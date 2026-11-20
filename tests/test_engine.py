@@ -17,6 +17,10 @@ assert s("orig.py", "recursive.py") > 0.4, "loop->recursion should still score c
 assert trap < 0.3, "independent solution to same task is a false positive"
 assert s("orig.cpp", "renamed.cpp") > 0.5, "C++ rename + for->while"
 assert s("orig.java", "renamed.java") > 0.6, "Java rename + reorder"
+for ext in ("py", "cpp", "java"):  # AI rewrite (renames, type hints, helpers, style changes) must beat the trap
+    ai, trap_x = s(f"orig.{ext}", f"ai_rewrite.{ext}"), s(f"orig.{ext}", f"independent.{ext}")
+    print(f"{ext}: ai_rewrite {ai:.3f} vs independent {trap_x:.3f}")
+    assert ai > trap_x, f"{ext}: AI rewrite should outrank independent solution"
 assert not any(p["a"].rsplit(".")[-1] != p["b"].rsplit(".")[-1] for p in res["pairs"]), "same-language only"
 top = res["pairs"][0]
 assert top["matches"] and all(len(m) == 2 for m in top["matches"]), "top pair needs line matches"
