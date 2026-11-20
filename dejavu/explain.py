@@ -37,11 +37,16 @@ def renames(src_a, src_b, lang, matches):
     sm = SequenceMatcher(None, [k for k, _, _ in ta], [k for k, _, _ in tb], autojunk=False)
     for tag, i0, i1, j0, j1 in sm.get_opcodes():
         if tag == "equal":
-            seen.update((x[1], y[1]) for x, y in zip(ta[i0:i1], tb[j0:j1]) if x[0] == "ID" and x[1] != y[1])
-    # keep a name's dominant partner only, and only if it recurs: one-off alignments are noise
+            seen.update((x[1], y[1]) for x, y in zip(ta[i0:i1], tb[j0:j1]) if x[0] == "ID")
+    tot_a, tot_b = Counter(), Counter()
+    for (a, b), c in seen.items():
+        tot_a[a] += c
+        tot_b[b] += c
+    # A swap must recur and be each name's main partner on both sides; stray alignments
+    # (grid -> sc because both sit in a call's first slot twice) would mislead the "B's names" view.
     best = {}
     for (a, b), c in seen.most_common():
-        if c >= 2 and a not in best and b not in best.values():
+        if a != b and c >= 2 and c >= 0.6 * tot_a[a] and c >= 0.6 * tot_b[b] and a not in best and b not in best.values():
             best[a] = b
     return [(a, b, seen[a, b]) for a, b in best.items()]
 
@@ -64,14 +69,19 @@ def coverage(src, blocks):
     return sum(any(a <= i <= b for a, b in blocks) for i in lines) / max(len(lines), 1)
 
 
-def evidence(result, pair):
+def context(result):
+    """Batch-wide facts evidence() needs; compute once when explaining many pairs."""
+    # a line in 3+ submissions is boilerplate (class Main, Scanner setup), not evidence about this pair
+    df = Counter(s for src in result["files"].values() for s in {l.strip() for l in src.split("\n")})
+    return {"common": {s for s, c in df.items() if c > 2}, "scores": sorted(p["score"] for p in result["pairs"])}
+
+
+def evidence(result, pair, ctx=None):
     """Everything the UI needs to justify one pair. `result` is scan() output, `pair` one of its pairs."""
     a, b, m = pair["a"], pair["b"], pair["matches"]
     sa, sb = result["files"][a], result["files"][b]
-    scores = sorted(p["score"] for p in result["pairs"])
-    # a line in 3+ submissions is boilerplate (class Main, Scanner setup), not evidence about this pair
-    df = Counter(s for src in result["files"].values() for s in {l.strip() for l in src.split("\n")})
-    common = {s for s, c in df.items() if c > 2}
+    ctx = ctx or context(result)
+    common, scores = ctx["common"], ctx["scores"]
     return {
         "blocks": sorted(({"a": x, "b": y, "lines": max(x[1] - x[0], y[1] - y[0]) + 1} for x, y in m),
                          key=lambda d: -d["lines"]),
