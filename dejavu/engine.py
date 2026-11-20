@@ -26,7 +26,7 @@ LOOP = {"for_statement", "while_statement", "do_statement", "for_range_loop", "e
 DROP_LEAF = {"for", "while", "do", "{", "}", ";"}
 FUNC = {"function_definition", "method_declaration", "constructor_declaration"}
 CALL = {"call": "function", "call_expression": "function", "method_invocation": "name"}
-K = 5  # tokens per fingerprint
+K = 6  # tokens per fingerprint (6 beat 5 on the separation margin once Python type hints and docstrings were dropped)
 MATCH_TOP = 100  # shortcut: line matches only for the top 100 pairs, raise if the UI shows more
 # Cf = zero-width and bidi ("Trojan Source") controls; Zs/Zl/Zp = any space or line break except a plain space.
 HIDDEN = {"Cf", "Zs", "Zl", "Zp"}
@@ -94,13 +94,23 @@ def _fn_name(node):
     return n.text if n is not None else None
 
 
+def _py_noise(node):
+    """Type hints and docstrings carry no logic, but AI rewrites add both everywhere: left in, they make two
+    AI files about different problems look alike and an AI copy look less like its hint-free original."""
+    if node.type == "type":  # `x: int`, `-> list[int]`
+        return True
+    p = node.parent  # a bare string statement is a docstring (some grammar versions wrap it, some don't)
+    return (node.type == "string" and p is not None
+            and (p.type in ("block", "module") or (p.type == "expression_statement" and p.named_child_count == 1)))
+
+
 def tokens(src, lang):
     """Normalized (token, line) stream. Loops and self-recursive calls both emit LOOP."""
     out, stack = [], [(get_parser(lang).parse(src.encode()).root_node, None)]
     while stack:
         node, fn = stack.pop()
         t, line = node.type, node.start_point[0] + 1
-        if t in SKIP:
+        if t in SKIP or (lang == "python" and _py_noise(node)):
             continue
         if t in FUNC:
             fn = _fn_name(node)

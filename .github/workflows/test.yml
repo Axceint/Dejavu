@@ -18,3 +18,4 @@ jobs:
       - run: python -m tests.test_problems
       - run: python -m tests.bench
       - run: python -m tests.test_app
+      - run: python -m tests.test_margin
