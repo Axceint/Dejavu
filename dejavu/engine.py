@@ -1,6 +1,8 @@
 """Structural similarity: tree-sitter tokens -> k-gram fingerprints -> rarity-weighted overlap."""
 import math
+import re
 import time
+import unicodedata
 import zipfile
 import zlib
 from collections import Counter
@@ -26,6 +28,9 @@ FUNC = {"function_definition", "method_declaration", "constructor_declaration"}
 CALL = {"call": "function", "call_expression": "function", "method_invocation": "name"}
 K = 5  # tokens per fingerprint
 MATCH_TOP = 100  # shortcut: line matches only for the top 100 pairs, raise if the UI shows more
+# Cf = zero-width and bidi ("Trojan Source") controls; Zs/Zl/Zp = any space or line break except a plain space.
+HIDDEN = {"Cf", "Zs", "Zl", "Zp"}
+WORD = re.compile(r"[^\W\d_]+")  # runs of letters
 
 
 def _junk(name):  # macOS zip metadata (__MACOSX/, ._file) is binary, not a submission
@@ -46,6 +51,28 @@ def load(path):
             if p.is_file() and p.suffix.lower() in LANG and not _junk(p.relative_to(path)):
                 files[p.relative_to(path).as_posix()] = p.read_text("utf-8", "replace")
     return files
+
+
+def hidden_chars(src):
+    """Invisible or look-alike characters, often left by text pasted from chat UIs. A hint, not proof."""
+    out = []
+    for i, line in enumerate(src.removeprefix("\ufeff").split("\n"), 1):  # a leading BOM is normal on Windows
+        if line.isascii():
+            continue
+        for c in dict.fromkeys(line):
+            if c != " " and unicodedata.category(c) in HIDDEN:
+                out.append({"line": i, "char": f"U+{ord(c):04X}", "name": unicodedata.name(c, "UNNAMED")})
+        for w in WORD.findall(line):  # one word mixing Latin with Cyrillic/Greek, e.g. "data" with a Cyrillic "a"
+            odd = [c for c in w if unicodedata.name(c, "").startswith(("CYRILLIC", "GREEK"))]
+            if odd and any(c.isascii() for c in w):
+                out.append({"line": i, "char": f"U+{ord(odd[0]):04X}", "name": f"{unicodedata.name(odd[0])} in '{w}'"})
+    return out
+
+
+def _clean(src):  # hidden characters break parsing, which would let them hide a copy
+    if src.isascii():
+        return src
+    return "".join("" if (k := unicodedata.category(c)) == "Cf" else " " if k in HIDDEN else c for c in src)
 
 
 def _fn_name(node):
@@ -113,7 +140,7 @@ def _blocks(fa, fb, shared):
 def scan(path):
     start = time.perf_counter()
     files = load(path)
-    fps = {n: fingerprints(tokens(src, LANG[Path(n).suffix.lower()])) for n, src in files.items()}
+    fps = {n: fingerprints(tokens(_clean(src), LANG[Path(n).suffix.lower()])) for n, src in files.items()}
     pairs = []
     by_lang = {}
     for n in files:
@@ -138,4 +165,5 @@ def scan(path):
     for i, p in enumerate(pairs):
         shared = p.pop("shared")
         p["matches"] = _blocks(fps[p["a"]], fps[p["b"]], shared) if i < MATCH_TOP else []
-    return {"files": files, "pairs": pairs, "seconds": round(time.perf_counter() - start, 3)}
+    flags = {n: f for n, src in files.items() if (f := hidden_chars(src))}
+    return {"files": files, "pairs": pairs, "flags": flags, "seconds": round(time.perf_counter() - start, 3)}
