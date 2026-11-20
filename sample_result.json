@@ -1,0 +1,12 @@
+{
+  "seconds": 0.42,
+  "files": {
+    "alice.py": "def total(xs):\n    s = 0\n    for x in xs:\n        s += x\n    return s\n",
+    "bob.py": "def add_all(items):\n    acc = 0\n    for it in items:\n        acc += it\n    return acc\n",
+    "carol.py": "print(sum(map(int, input().split())))\n"
+  },
+  "pairs": [
+    {"a": "alice.py", "b": "bob.py", "score": 0.93, "matches": [[[1, 5], [1, 5]]]},
+    {"a": "alice.py", "b": "carol.py", "score": 0.04, "matches": []}
+  ]
+}
