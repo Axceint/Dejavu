@@ -35,7 +35,9 @@ result = scan("path/to/folder_or.zip", base=None)  # base: optional starter code
 ## Status
 - [x] Setup, parsers verified
 - [x] Engine + self-test (Himu): 300 files in ~2 s; rename/reorder 0.75, loop→recursion 0.55, independent same-task solution 0.04
-- [ ] UI on fake data (Akshit)
+- [x] Hidden-character flags + starter-code exclusion (`--base`) (Himu)
+- [x] README with comparison to MOSS/JPlag/Dolos (Himu)
+- [ ] UI (Akshit): see HANDOVER.md, task 1
 - [ ] Hosted link by hour 12
 - [ ] Hour-12 change: TBD (reserve hours 12–17)
 
