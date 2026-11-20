@@ -15,8 +15,29 @@ DEMO = Path(__file__).parent / "tests" / "problems"
 st.set_page_config("Dejavu", layout="wide", initial_sidebar_state="collapsed")
 st.html("""<style>
 header[data-testid="stHeader"], footer {display:none}
-.block-container {padding:12px 20px 0; max-width:none}
-iframe {border:1px solid rgba(128,128,128,.25); border-radius:6px}
+.block-container {padding:12px 20px; max-width:none}
+/* The review screen fills the window under the top bar: 12px pad + 40px bar + 16px gap + 12px pad = 80px. */
+iframe[data-testid="stIFrame"] {display:block; height:calc(100dvh - 80px) !important; min-height:520px;
+  border:1px solid var(--dj-line, rgba(128,128,128,.25)); border-radius:6px}
+[data-testid="stElementContainer"]:has(> iframe[data-testid="stIFrame"]) {flex:0 0 auto !important; height:auto !important}
+
+/* Streamlit can't switch its own theme from code, so the review screen's toggle sets data-dejavu-theme on
+   this page and these rules repaint the frame around it (same palette as review.html and config.toml). */
+html[data-dejavu-theme=light] {color-scheme:light; --dj-bg:#fafaf9; --dj-panel:#fff; --dj-sunk:#f3f3f1;
+  --dj-line:#cfcfca; --dj-text:#1b1b19; --dj-muted:#65655f}
+html[data-dejavu-theme=dark] {color-scheme:dark; --dj-bg:#141413; --dj-panel:#1b1b1a; --dj-sunk:#222220;
+  --dj-line:#3d3d39; --dj-text:#ecece8; --dj-muted:#a3a39b}
+html[data-dejavu-theme] :is([data-testid="stApp"], [data-testid="stPopoverBody"]) {
+  background:var(--dj-bg); color:var(--dj-text)}
+html[data-dejavu-theme] [data-testid="stPopoverBody"] {border:1px solid var(--dj-line)}
+html[data-dejavu-theme] :is([data-testid="stMarkdownContainer"], [data-testid="stWidgetLabel"]) {color:var(--dj-text)}
+html[data-dejavu-theme] [data-testid="stMarkdownContainer"] code {background:var(--dj-sunk); color:var(--dj-muted)}
+html[data-dejavu-theme] [data-testid="stFileUploaderDropzone"] {background:var(--dj-sunk); color:var(--dj-text)}
+html[data-dejavu-theme] [data-testid="stFileUploaderDropzoneInstructions"] * {color:var(--dj-muted)}
+html[data-dejavu-theme] :is([data-testid="stBaseButton-secondary"], [data-testid="stPopoverButton"]) {
+  background:var(--dj-panel); border-color:var(--dj-line); color:var(--dj-text)}
+html[data-dejavu-theme] :is([data-testid="stBaseButton-secondary"], [data-testid="stPopoverButton"]):hover {
+  background:var(--dj-sunk); border-color:var(--dj-text); color:var(--dj-text)}
 </style>""")
 
 
