@@ -26,8 +26,17 @@ b = "y = 2\n    int helper_value = 42;\n    long long weird_total = 0; // tally\
 assert verbatim(a, b) == [(2, 3, "long long weird_total = 0; // tally"), (3, 2, "int helper_value = 42;")]
 assert verbatim(a, b, {"int helper_value = 42;"}) == [(2, 3, "long long weird_total = 0; // tally")]
 
+# progress: stages arrive in order, each ending at its total, so the unzip and scan bars fill completely
+events = []
+tick = lambda stage, done, total: events.append((stage, done, total))
+data = payload(scan(Path(__file__).parent / "problems", None, tick), progress=tick)
+order = [s for i, (s, _, _) in enumerate(events) if i == 0 or events[i - 1][0] != s]
+assert order == ["read", "parse", "compare", "explain"], order
+for stage in order:
+    last = [e for e in events if e[0] == stage][-1]
+    assert last[1] == last[2], last
+
 # payload: demo ranks the 6 true copies first, with name roles as evidence
-data = payload(scan(Path(__file__).parent / "problems"))
 kind = lambda i: data["files"][i]["name"].split("/")[1].split(".")[0]
 assert all({kind(p["a"]), kind(p["b"])} == {"orig", "ai_rewrite"} for p in data["pairs"][:6])
 assert ("distance", "dist", 7) in data["pairs"][0]["ren"], data["pairs"][0]["ren"]
@@ -56,4 +65,8 @@ next(x for x in at.button if x.label == "Try the demo set").click().run()
 assert not at.exception, at.exception
 iframe = at.get("iframe")[0].proto
 assert "const DATA = {" in iframe.srcdoc and "grid_bfs/ai_rewrite.java" in iframe.srcdoc
+# the finished unzip/read and scan bars stay on the results page
+bars = [(b.proto.value, b.proto.text) for b in at.get("progress")]
+assert len(bars) == 2 and all(v == 100 for v, _ in bars), bars
+assert bars[0][1].startswith("Read 18 files") and bars[1][1].startswith("Scanned · 45 pairs share code"), bars
 print("APP PASS")

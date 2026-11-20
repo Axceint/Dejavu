@@ -2,6 +2,7 @@
 import csv
 import io
 import tempfile
+import time
 import zipfile
 from pathlib import Path
 
@@ -16,8 +17,10 @@ st.set_page_config("Dejavu", layout="wide", initial_sidebar_state="collapsed")
 st.html("""<style>
 header[data-testid="stHeader"], footer {display:none}
 .block-container {padding:12px 20px; max-width:none}
-/* The review screen fills the window under the top bar: 12px pad + 40px bar + 16px gap + 12px pad = 80px. */
-.st-key-review iframe {display:block; height:calc(100dvh - 80px) !important; min-height:520px;
+/* The review screen fills the window under the top bar and the unzip/scan bars:
+   12px pad + 40px top bar + 16px gap + 36px bars + 16px gap + 12px pad = 132px. */
+.st-key-phases:has([data-testid="stProgress"]) {min-height:36px}
+.st-key-review iframe {display:block; height:calc(100dvh - 132px) !important; min-height:520px;
   border:1px solid var(--dj-line, rgba(128,128,128,.25)); border-radius:6px}
 .st-key-review [data-testid="stElementContainer"] {flex:0 0 auto !important; height:auto !important}
 .st-key-theme iframe {display:block; border:0}
@@ -41,6 +44,8 @@ html[data-dejavu-theme] [data-testid="stCode"] .token.function {color:var(--dj-t
 html[data-dejavu-theme] [data-testid="stCode"] :is(.token.operator, .token.punctuation) {color:var(--dj-muted)}
 html[data-dejavu-theme] [data-testid="stBaseButton-primary"] {background:var(--dj-accent); border-color:var(--dj-accent);
   color:var(--dj-on-accent)}
+html[data-dejavu-theme] [data-testid="stProgressBarTrack"] {background:var(--dj-sunk)}
+html[data-dejavu-theme] [data-testid="stProgressBarTrack"] > div {background:var(--dj-accent)}
 html[data-dejavu-theme] [data-testid="stBaseButton-primary"]:disabled {background:transparent; border-color:var(--dj-line);
   color:var(--dj-muted)}
 html[data-dejavu-theme] :is([data-testid="stApp"], [data-testid="stPopoverBody"]) {
@@ -67,32 +72,71 @@ def all_pairs_csv(r):
     return out.getvalue()
 
 
-def run(path, base, label):
+DEMO_JOB = {"name": "demo set"}
+# Where each scan stage sits on the scanning bar, and its live label.
+STAGES = {"parse": (0.0, 0.6, "parsing {:,} / {:,} files"), "compare": (0.6, 0.85, "comparing {:,} / {:,} pairs"),
+          "explain": (0.85, 1.0, "preparing evidence {:,} / {:,}")}
+
+
+def run(job, area):
+    """Scan an upload (or the demo set) with live unzip and scan bars in `area`. Their final labels are kept
+    so the results page can show how long each part took."""
+    zipped = "zip" in job
+    now_verb, done_verb = ("Unzipping", "Unzipped") if zipped else ("Reading files", "Read")
+    read_bar = area.progress(0.0, text=f"{now_verb}…")
+    scan_bar = area.progress(0.0, text="Scanning · waiting for files")
+    t = {"start": time.perf_counter(), "read": None, "shown": 0.0}
+
+    def tick(stage, done, total):
+        now = time.perf_counter()
+        if stage != "read" and t["read"] is None:
+            t["read"] = now
+            read_bar.progress(1.0, text=f"{done_verb} all files")
+        if now - t["shown"] < 0.05 and done < total:  # repaint at most 20 times a second
+            return
+        t["shown"] = now
+        frac = done / total if total else 1.0
+        if stage == "read":
+            read_bar.progress(frac, text=f"{now_verb} · {done:,} / {total:,} files")
+        else:
+            lo, hi, label = STAGES[stage]
+            scan_bar.progress(lo + (hi - lo) * frac, text="Scanning · " + label.format(done, total))
+
     try:
-        r = scan(path, base)
+        with tempfile.TemporaryDirectory() as d:
+            path, base = DEMO, None
+            if zipped:
+                path = Path(d, "submissions.zip")
+                path.write_bytes(job["zip"])
+                if job["starter"]:
+                    (Path(d) / "base").mkdir()
+                    base = Path(d, "base", job["starter_name"])  # keep the suffix: scan() picks the language from it
+                    base.write_bytes(job["starter"])
+            r = scan(path, base, tick)
+            data = payload(r, progress=tick)
     except (FileNotFoundError, ValueError, zipfile.BadZipFile) as e:
-        st.session_state.err = f"Couldn't scan {label}: {e}"
+        st.session_state.err = f"Couldn't scan {job['name']}: {e}"
         return
-    st.session_state.update(data=payload(r), csv=all_pairs_csv(r), label=label, err=None)
+    end = time.perf_counter()
+    read_end = t["read"] or end
+    st.session_state.update(
+        data=data, csv=all_pairs_csv(r), label=job["name"], err=None,
+        phases=[f"{done_verb} {len(r['files']):,} files · {read_end - t['start']:.2f} s",
+                f"Scanned · {len(r['pairs']):,} pairs share code · {end - read_end:.2f} s"])
 
 
 def upload_form(key):
+    """The upload widgets; returns a scan job when Scan is clicked (run later, so its bars sit in one place)."""
     up = st.file_uploader("Submissions: one .zip of .py, .cpp or .java files", type="zip", key=f"z{key}")
     starter = st.file_uploader("Starter code everyone received (optional). Matches inside it are ignored.",
                                type=["py", "cpp", "java", "zip"], key=f"s{key}")
     if st.button("Scan", type="primary", disabled=up is None, key=f"b{key}"):
-        with tempfile.TemporaryDirectory() as d, st.spinner("Scanning…"):
-            sub = Path(d, "submissions.zip")
-            sub.write_bytes(up.getvalue())
-            base = None
-            if starter:
-                (Path(d) / "base").mkdir()
-                base = Path(d, "base", Path(starter.name).name)  # keep the suffix: scan() picks the language from it
-                base.write_bytes(starter.getvalue())
-            run(sub, base, up.name)
-        st.rerun()
+        return {"name": up.name, "zip": up.getvalue(), "starter": starter.getvalue() if starter else None,
+                "starter_name": Path(starter.name).name if starter else None}
+    return None
 
 
+job = None
 data = st.session_state.get("data")
 # rendered per run so the review screen opens in the frame's current light/dark theme
 html = render(data, st.context.theme.type) if data else None
@@ -101,10 +145,9 @@ label = st.session_state.get("label", "").replace("`", "'")  # upload name is un
 bar[0].markdown("**Dejavu** · code similarity review" + (f" · `{label}`" if html else ""))
 if html:
     with bar[1].popover("New scan", width="stretch"):
-        upload_form("bar")
+        job = upload_form("bar")
     if bar[2].button("Demo set", width="stretch"):
-        run(DEMO, None, "demo set")
-        st.rerun()
+        job = DEMO_JOB
     bar[3].download_button("Offline report", html, "dejavu-report.html", "text/html", width="stretch",
                            help="The same review screen as one HTML file. Opens without a server.")
     bar[4].download_button("All pairs CSV", st.session_state.csv, "dejavu-pairs.csv", "text/csv", width="stretch")
@@ -115,6 +158,9 @@ else:
 
 if st.session_state.get("err"):
     st.error(st.session_state.err)
+
+# Unzip and scan bars: live while a scan runs, then kept (full, with timings) above the results.
+area = st.container(key="phases", horizontal=True, gap="large")
 
 if html:
     # html is our own template; uploaded code only enters it as escaped JSON data (see dejavu/report.py)
@@ -127,11 +173,10 @@ else:
         st.write("Upload every student's file for one assignment. Dejavu ranks each pair by how much rare "
                  "structure they share, shows the matching lines side by side, and lets you mark each pair "
                  "as you review. A score ranks pairs for review; it is not proof of copying.")
-        upload_form("main")
+        job = upload_form("main") or job
         st.caption("No zip at hand?")
         if st.button("Try the demo set"):
-            run(DEMO, None, "demo set")
-            st.rerun()
+            job = DEMO_JOB
     with right:
         st.markdown("**How it works**")
         st.code("# Student A                # Student B\n"
@@ -143,3 +188,10 @@ else:
         st.markdown("Both become `def ID ( ID ) : ID = LIT LOOP ID in ID : ID += ID return ID`. Names, numbers "
                     "and loop styles stop mattering. Short runs of these tokens are compared across every pair, "
                     "and runs that few students share count most.")
+
+if job:
+    run(job, area)
+    st.rerun()
+elif html and st.session_state.get("phases"):
+    for text in st.session_state.phases:
+        area.progress(1.0, text=text)
