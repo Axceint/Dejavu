@@ -13,9 +13,10 @@ Never push to `main`. Commits are authored by the human only (their git config);
    ```bash
    sha=$(gh pr view N -R Axceint/Dejavu --json headRefOid --jq .headRefOid)
    id=$(gh run list -R Axceint/Dejavu -b <branch> --json databaseId,headSha --jq ".[] | select(.headSha==\"$sha\") | .databaseId" | head -1)
-   gh run watch "$id" -R Axceint/Dejavu --exit-status && gh pr merge N -R Axceint/Dejavu --squash --delete-branch
+   gh run watch "$id" -R Axceint/Dejavu --exit-status && gh pr merge N -R Axceint/Dejavu --squash
    ```
    If `id` is empty the run hasn't registered yet; retry the `gh run list` after a few seconds.
+   Keep the branch on GitHub after merge (team wants every branch visible); never pass `--delete-branch`.
 
 Board columns (project 4, owner itzhimanshugt). Move a card:
 `gh project item-edit --project-id PVT_kwHOCpPskc4Bshr2 --id <item-id> --field-id PVTSSF_lAHOCpPskc4Bshr2zhqvdEo --single-select-option-id <opt>`
