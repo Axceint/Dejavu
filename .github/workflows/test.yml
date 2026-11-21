@@ -21,3 +21,4 @@ jobs:
       - run: python -m tests.test_margin
       - run: python -m tests.test_ask
       - run: python -m tests.test_watermark
+      - run: python -m tests.test_telemetry
