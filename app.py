@@ -1,6 +1,4 @@
 """Streamlit host: takes the upload, runs scan(), and embeds the review app from dejavu/review.html."""
-import csv
-import io
 import tempfile
 import time
 import zipfile
@@ -9,7 +7,7 @@ from pathlib import Path
 import streamlit as st
 
 from dejavu.engine import scan
-from dejavu.report import payload, render, theme_toggle
+from dejavu.report import all_pairs_csv, payload, render, theme_toggle
 
 DEMO = Path(__file__).parent / "tests" / "problems"
 
@@ -71,16 +69,6 @@ html[data-dejavu-theme] :is([data-testid="stBaseButton-secondary"], [data-testid
 html[data-dejavu-theme] :is([data-testid="stBaseButton-secondary"], [data-testid="stPopoverButton"]):hover {
   background:var(--dj-sunk); border-color:var(--dj-text); color:var(--dj-text)}
 </style>""")
-
-
-def all_pairs_csv(r):
-    out = io.StringIO()
-    w = csv.writer(out)
-    w.writerow(["rank", "score", "file_a", "file_b"])
-    # leading = + - @ would run as a formula in Excel; file names come from students
-    safe = lambda s: "'" + s if s[:1] in "=+-@" else s
-    w.writerows([i, p["score"], safe(p["a"]), safe(p["b"])] for i, p in enumerate(r["pairs"], 1))
-    return out.getvalue()
 
 
 DEMO_JOB = {"name": "demo set"}

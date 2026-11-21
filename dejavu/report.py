@@ -1,4 +1,6 @@
 """Turns scan() output into one self-contained HTML review app (also usable offline as a downloaded report)."""
+import csv
+import io
 import json
 import zlib
 from bisect import bisect_left
@@ -64,3 +66,13 @@ def render(data, theme=None):
 def theme_toggle(theme=None):
     """The light/dark button for pages without the review screen; shares the review's saved choice."""
     return Path(__file__).with_name("toggle.html").read_text("utf-8").replace("/*__THEME__*/null", _host(theme), 1)
+
+
+def all_pairs_csv(r):
+    out = io.StringIO()
+    w = csv.writer(out)
+    w.writerow(["rank", "score", "file_a", "file_b"])
+    # leading = + - @ would run as a formula in Excel; file names come from students
+    safe = lambda s: "'" + s if s[:1] in "=+-@" else s
+    w.writerows([i, p["score"], safe(p["a"]), safe(p["b"])] for i, p in enumerate(r["pairs"], 1))
+    return out.getvalue()
