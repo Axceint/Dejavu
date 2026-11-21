@@ -21,7 +21,7 @@ const HOST_THEME = /*__THEME__*/null;
   color-scheme:light;
   --bg:#f6f1e9;--panel:#fffcf7;--sunk:#efe7db;--line:#e6dccd;--line2:#d6c8b4;
   --text:#2a1f17;--muted:#6f5f4f;--faint:#9c8b78;
-  --accent:#a0522d;--fill:#a0522d;--cite:#ffe98a;--copy:#a8322a;--copy-bg:#f8e4df;--clear:#3f6b3a;--clear-bg:#e6efe1;
+  --accent:#a0522d;--fill:#a0522d;--cite:#ffe98a;--cite-kw:#f5b041;--copy:#a8322a;--copy-bg:#f8e4df;--clear:#3f6b3a;--clear-bg:#e6efe1;
   --kw:#8a4b1f;--str:#4f6b2f;--com:#9c8b78;--num:#b0621e;--rn:#a0522d;
   --sans:"DM Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   --serif:"Fraunces",Georgia,"Times New Roman",serif;
@@ -33,7 +33,7 @@ const HOST_THEME = /*__THEME__*/null;
   color-scheme:dark;
   --bg:#1b1612;--panel:#231c17;--sunk:#2c241e;--line:#3a2f27;--line2:#4a3d33;
   --text:#f3e9dc;--muted:#c2b09c;--faint:#8f7d6a;
-  --accent:#e0a36a;--fill:#e0a36a;--cite:#5e4c10;--copy:#f19a8f;--copy-bg:#3b1f1b;--clear:#a7cf8f;--clear-bg:#1f2b1b;
+  --accent:#e0a36a;--fill:#e0a36a;--cite:#5e4c10;--cite-kw:#9a6412;--copy:#f19a8f;--copy-bg:#3b1f1b;--clear:#a7cf8f;--clear-bg:#1f2b1b;
   --kw:#e7b07a;--str:#b9d08a;--com:#8f7d6a;--num:#f0b27a;--rn:#e0a36a;
 }
 *{box-sizing:border-box}
@@ -144,8 +144,15 @@ button.chip:hover{border-color:var(--text)}
 .ln.m{background:var(--match)}
 .ln.v{background:var(--verb)}
 .ln.f{background:var(--hot)}
-/* lines an Ask AI citation points at: stay marked until another citation or pair */
-.ln.cite{background:var(--cite);box-shadow:inset 3px 0 0 var(--fill)}  /* a highlighter, unlike the match colours */
+/* lines an Ask AI citation points at: the block and the names it's about pulse together twice, then fade out */
+.ln.cite{--hl:var(--cite);animation:cite 3s ease-in-out forwards}
+.ln.cite mark.kw{--hl:var(--cite-kw);color:inherit;border-radius:3px;animation:cite 3s ease-in-out forwards}
+@keyframes cite{
+  0%,30%,60%{background:var(--hl);box-shadow:inset 3px 0 0 var(--fill)}
+  15%,45%{background:color-mix(in srgb,var(--hl) 40%,transparent);box-shadow:inset 3px 0 0 var(--fill)}
+  100%{background:transparent;box-shadow:inset 3px 0 0 transparent}}
+@media (prefers-reduced-motion:reduce){.ln.cite,.ln.cite mark.kw{animation:cite-still 3s steps(1,end) forwards}}
+@keyframes cite-still{0%{background:var(--hl);box-shadow:inset 3px 0 0 var(--fill)}100%{background:transparent}}
 .ln.ai{box-shadow:inset 3px 0 0 var(--ai)}
 .ln.ai .com,.ln.ai .str{color:var(--ai)}
 .tag.ai{color:var(--ai);border-color:currentColor}
@@ -779,12 +786,40 @@ addEventListener("message", (e) => {
   if (i === undefined) return;
   select(i);
   const s = P[i].a === fi ? "A" : "B", end = Number.isInteger(m.end) && m.end >= m.line ? m.end : m.line;
+  const words = Array.isArray(m.words) ? m.words.filter((w) => typeof w === "string" && /^\w+$/.test(w)) : [];
   setTimeout(() => {  // after wireDetail's own jump to the top fragment
-    document.querySelectorAll(".ln.cite").forEach((el) => el.classList.remove("cite"));
-    lineEls[s].slice(m.line - 1, end).forEach((el) => el.classList.add("cite"));
+    unCite();
+    const lines = lineEls[s].slice(m.line - 1, end), re = words.length && new RegExp(`\\b(${words.join("|")})\\b`, "gi");
+    lines.forEach((el) => {
+      if (re) markWords(el.lastElementChild, re);
+      void el.offsetWidth;  // restart the animation when the same lines are cited again
+      el.classList.add("cite");
+    });
     showLine(s, m.line);
+    lines[0] && lines[0].classList.remove("f");  // the citation flash replaces the usual jump flash
+    citeTimer = setTimeout(unCite, 3100);
   }, 50);
 });
+let citeTimer;
+function unCite() {
+  clearTimeout(citeTimer);
+  document.querySelectorAll("mark.kw").forEach((k) => { const p = k.parentNode; k.replaceWith(k.textContent); p.normalize(); });
+  document.querySelectorAll(".ln.cite").forEach((el) => el.classList.remove("cite"));
+}
+function markWords(root, re) {  // wrap matches in text nodes only, so the line's own markup and escaping stay intact
+  const walk = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), nodes = [];
+  while (walk.nextNode()) nodes.push(walk.currentNode);
+  nodes.forEach((t) => {
+    const parts = t.data.split(re);  // the capture group keeps the matches at odd indexes
+    if (parts.length < 2) return;
+    t.replaceWith(...parts.map((x, i) => {
+      if (i % 2 === 0) return x;
+      const k = document.createElement("mark");
+      k.className = "kw"; k.textContent = x;
+      return k;
+    }));
+  });
+}
 $("#list").onkeydown = (e) => {
   if (e.key === "ArrowDown" || e.key === "ArrowUp") {
     e.preventDefault();

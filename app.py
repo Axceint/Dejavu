@@ -7,6 +7,7 @@ import tempfile
 import time
 import zipfile
 from html import escape
+from urllib.parse import quote
 from pathlib import Path
 
 import streamlit as st
@@ -39,6 +40,8 @@ html[data-dejavu-max] .st-key-topbar, html[data-dejavu-max] .st-key-phases {disp
 html[data-dejavu-max] .st-key-review iframe {height:calc(100dvh - 24px) !important}
 .st-key-review iframe {display:block; height:calc(100dvh - 80px) !important; min-height:520px;
   border:1px solid var(--dj-line, rgba(128,128,128,.25)); border-radius:10px}
+/* a new scan from the review shows its bars above the old review: the frame gives up their row (32px + 16px gap) */
+html:not([data-dejavu-max]):has(.st-key-phases [data-testid="stProgress"]) .st-key-review iframe {height:calc(100dvh - 128px) !important}
 .st-key-review [data-testid="stElementContainer"] {flex:0 0 auto !important; height:auto !important}
 .st-key-theme iframe {display:block; border:0}
 
@@ -85,7 +88,7 @@ html [data-testid="stBaseButton-primary"]:disabled {opacity:.55; cursor:not-allo
 .st-key-upload {background:var(--dj-panel, transparent); border-color:var(--dj-line, rgba(128,128,128,.25)) !important}
 
 /* Ask AI: a button in the top bar; it opens as a panel under the bar, so closed it covers nothing */
-.st-key-topbar > :has(.st-key-askai) {flex:0 0 fit-content; width:fit-content}  /* its fragment wrapper would otherwise stretch */
+.st-key-actions > :has(.st-key-askai) {flex:0 0 fit-content; width:fit-content}  /* its fragment wrapper would otherwise stretch */
 /* start page: a centred column instead of the full width; the demo gets its own accent block */
 .block-container:has(.st-key-intro) {max-width:1120px; margin:0 auto; padding-top:24px}
 .st-key-how {position:sticky; top:16px; align-self:flex-start}
@@ -105,8 +108,10 @@ html [data-testid="stBaseButton-primary"]:disabled {opacity:.55; cursor:not-allo
 @media (prefers-reduced-motion: reduce) {[data-testid="stPopoverBody"]:has(.st-key-askai_body) {animation:none}}
 /* AI status chip, in the middle of the top bar: off (grey), ready (green), error (red), indexing (red, pulsing) */
 /* centred in the free space between the name and the buttons */
-.st-key-topbar > :has([class*="st-key-aichip"], .dj-ai-busy) {flex:0 0 auto; width:fit-content; margin:0 auto}
-.st-key-topbar:has([class*="st-key-aichip"], .dj-ai-busy) > :has(.st-key-brand) {flex:0 1 auto; width:auto; min-width:0}
+/* brand and buttons get equal shares, so the chip sits at the page centre (it moves only when the buttons need the room) */
+.st-key-topbar > :has([class*="st-key-aichip"], .dj-ai-busy) {flex:0 0 auto; width:fit-content}
+.st-key-topbar:has(.st-key-actions) > :has(.st-key-brand) {flex:1 1 0; width:auto; min-width:0}
+.st-key-topbar > :has(.st-key-actions), .st-key-actions {flex:1 1 0; min-width:max-content; flex-wrap:nowrap}
 /* one row at any desktop width: the name gives way (ellipsis) before the buttons wrap */
 .st-key-topbar:has(.st-key-askai, [class*="st-key-aichip"]) {flex-wrap:nowrap}
 .st-key-topbar > :has(.st-key-brand) {min-width:0}
@@ -115,6 +120,16 @@ html [data-testid="stBaseButton-primary"]:disabled {opacity:.55; cursor:not-allo
 .st-key-brand code {white-space:nowrap}
 [class*="st-key-aichip"] [data-testid="stPopoverButton"] {border-radius:999px; padding:2px 12px; min-height:0; font-size:.85rem}
 html[data-dejavu-theme] [data-testid="stTextInput"] :is([data-baseweb="base-input"], input, button) {background:var(--dj-sunk); color:var(--dj-text)}
+/* key box: one bordered field with the eye inside it, same colours as the rest; no browser autofill blue */
+[data-testid="stPopoverBody"] [data-testid="stTextInputRootElement"] {border:1px solid var(--dj-line); border-radius:8px;
+  background:var(--dj-sunk); overflow:hidden}
+[data-testid="stPopoverBody"] [data-testid="stTextInputRootElement"]:focus-within {border-color:var(--dj-accent);
+  box-shadow:0 0 0 3px color-mix(in srgb, var(--dj-accent) 22%, transparent)}
+[data-testid="stPopoverBody"] [data-testid="stTextInputRootElement"] :is(input, button) {background:transparent !important;
+  color:var(--dj-text); border:0}
+[data-testid="stPopoverBody"] [data-testid="stTextInputRootElement"] button {color:var(--dj-muted)}
+[data-testid="stPopoverBody"] [data-testid="stTextInputRootElement"] button:hover {color:var(--dj-accent)}
+[data-testid="stPopoverBody"] input:-webkit-autofill {-webkit-box-shadow:0 0 0 40px var(--dj-sunk) inset; -webkit-text-fill-color:var(--dj-text)}
 .st-key-aichip_off [data-testid="stPopoverButton"] {border-style:dashed; color:var(--dj-muted, inherit)}
 .st-key-aichip_ready [data-testid="stIconMaterial"] {color:var(--dj-ok, #3f6b3a)}
 .st-key-aichip_error :is([data-testid="stIconMaterial"], [data-testid="stMarkdownContainer"] p) {color:var(--dj-bad, #a8322a)}
@@ -132,7 +147,8 @@ html[data-dejavu-theme] [data-testid="stTextInput"] :is([data-baseweb="base-inpu
 .dj-cite .n {flex:none; min-width:1.4em; padding:0 5px; border-radius:6px; font-size:.75rem; font-weight:700;
   text-align:center; color:var(--dj-on-accent, #fff); background:var(--dj-accent, #a0522d)}
 .st-key-askai_body .stMarkdownBadge {background:var(--dj-accent, #a0522d) !important; color:var(--dj-on-accent, #fff) !important;
-  font-size:.75rem !important; font-weight:700; padding:0 6px; border-radius:6px; vertical-align:1px}  /* same as the chip numbers */
+  font-size:.75rem !important; font-weight:700; padding:0 6px; border-radius:6px; vertical-align:1px;
+  display:inline}  /* same as the chip numbers; inline, not inline-block, so the nbsp keeps it on its word's line */
 .dj-cite code {overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:.8rem}
 .dj-cite .go {flex:none; color:var(--dj-accent-ink, #a0522d); font-weight:600}
 html[data-dejavu-theme] .st-key-askai_body [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) {
@@ -217,11 +233,80 @@ def upload_form(key):
     return None
 
 
+BOARD_A = ["<k>def</k> <f>total</f>(nums):", "    s = <n>0</n>", "    <k>for</k> x <k>in</k> nums:", "        s += x",
+           "    <k>return</k> s"]
+BOARD_B = ["<c># adds up the list</c>", "<k>def</k> <f>add_all</f>(values):", "    result = <n>0</n>",
+           "    <k>for</k> v <k>in</k> values:", "        result += v", "    <k>return</k> result"]
+BOARD_CSS = """<style>
+.djb{--lh:22px;--top:34px;font:12.5px/var(--lh) "JetBrains Mono",ui-monospace,monospace;color:var(--dj-text)}
+.djb .row{display:grid;grid-template-columns:minmax(0,1fr) 44px minmax(0,1fr);align-items:start}
+.djb .card{border:1px solid var(--dj-line);border-radius:10px;background:var(--dj-panel);padding:0 0 6px;min-width:0;overflow:hidden}
+.djb .hd{height:var(--top);display:flex;align-items:center;gap:6px;padding:0 10px;font:600 11px/1 "DM Sans",sans-serif;
+  color:var(--dj-muted);letter-spacing:.02em;border-bottom:1px solid var(--dj-line);margin-bottom:6px}
+.djb .hd b{color:var(--dj-accent-ink);font:700 12px/1 "JetBrains Mono",monospace}
+.djb .ln{height:var(--lh);white-space:pre;padding:0 10px 0 0;display:flex;transition:background .15s ease-out}
+.djb .ln i{font-style:normal;width:26px;flex:none;text-align:right;padding-right:8px;color:var(--dj-com);user-select:none}
+.djb .ln.m{background:color-mix(in srgb,var(--dj-accent) 11%,transparent)}
+.djb .ln.x{opacity:.55}
+.djb .k{color:var(--dj-kw);font-weight:600}.djb .f{font-weight:600}.djb .n{color:var(--dj-num)}.djb .c{color:var(--dj-com);font-style:italic}
+.djb .gap{align-self:stretch;background:no-repeat 0 0/44px auto}
+.djb .tags{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0 0}
+.djb .tag{border:1px solid var(--dj-line);border-radius:6px;padding:2px 8px;background:var(--dj-sunk);font-size:12px;line-height:20px}
+.djb .tag.hot{border-color:var(--dj-accent);color:var(--dj-accent-ink);background:color-mix(in srgb,var(--dj-accent) 9%,transparent)}
+.djb .tok{margin-top:14px;padding:10px 12px;border-radius:10px;background:var(--dj-sunk);line-height:1.9;word-spacing:2px}
+.djb .tok p{margin:0 0 4px;font:500 13px/1.4 "DM Sans",sans-serif;color:var(--dj-muted)}
+.djb .tok .t{color:var(--dj-accent-ink);font-weight:700}
+/*HOVER*/
+</style>"""
+
+
+def evidence_board():
+    """The start page's worked example, drawn the way the review screen shows evidence: matched lines, the
+    curves that pair them, the range tag, the renamed names and the shared tokens. Hover a line to see its partner."""
+    lh, top, pad = 22, 34, 6
+    y = lambda i: top + pad + i * lh + lh / 2  # centre of line i (0-based) inside a card
+    pairs = [(i, i + 1) for i in range(len(BOARD_A))]  # B has one extra comment line on top, which is ignored
+    h = top + pad + len(BOARD_B) * lh + 6
+    # Streamlit's sanitiser drops inline <svg>, so the curves are an SVG image; it draws itself in once (motion allowing)
+    curves = "".join(f'<path d="M0 {y(a)} C22 {y(a)} 22 {y(b)} 44 {y(b)}" style="animation-delay:{.15 + a * .07:.2f}s"/>'
+                     for a, b in pairs)
+    svg = (f'<svg xmlns="http://www.w3.org/2000/svg" width="44" height="{h}"><style>path{{fill:none;stroke:STROKE;'
+           'stroke-width:1.5;stroke-linecap:round;stroke-dasharray:70;animation:d .9s cubic-bezier(.16,1,.3,1) both}'
+           '@keyframes d{from{stroke-dashoffset:70;opacity:.25}}@media (prefers-reduced-motion:reduce){path{animation:none}}'
+           f'</style>{curves}</svg>')
+    img = lambda c: 'url("data:image/svg+xml,' + quote(svg.replace("STROKE", c)) + '")'
+    gap = (f".djb .gap{{background-image:{img('#a0522d')}}}"
+           f"html[data-dejavu-theme=dark] .djb .gap{{background-image:{img('#e0a36a')}}}")
+    hover = "\n".join(f".djb:has(.a{a}:hover,.b{b}:hover) :is(.a{a},.b{b}){{background:color-mix(in srgb,var(--dj-accent) 26%,transparent)}}"
+                      for a, b in pairs) + gap
+    ln = lambda side, i, code, cls: f'<div class="ln {cls} {side}{i}"><i>{i + 1}</i><span>{code}</span></div>'
+    a = "".join(ln("a", i, c, "m") for i, c in enumerate(BOARD_A))
+    b = "".join(ln("b", i, c, "x" if i == 0 else "m") for i, c in enumerate(BOARD_B))
+    tok = " ".join(f'<span class="t">{t}</span>' if t in ("ID", "LIT", "LOOP") else t
+                   for t in "def ID ( ID ) : ID = LIT LOOP ID in ID : ID += ID return ID".split())
+    span = lambda html: re.sub(r"<([kfnc])>(.*?)</\1>", r'<span class="\1">\2</span>', html)  # sanitiser-safe markup
+    a, b = span(a), span(b)
+    return (BOARD_CSS.replace("/*HOVER*/", hover) + '<div class="djb" role="img" aria-label="Two renamed functions matched line by line">'
+            f'<div class="row"><div class="card"><div class="hd"><b>A</b> student_a.py</div>{a}</div>'
+            '<div class="gap"></div>'
+            f'<div class="card"><div class="hd"><b>B</b> student_b.py</div>{b}</div></div>'
+            '<div class="tags"><span class="tag hot">A 1–5 ≡ B 2–6</span><span class="tag">nums → values</span>'
+            '<span class="tag">s → result</span><span class="tag">x → v</span><span class="tag">total → add_all</span></div>'
+            f'<div class="tok"><p>Both become the same tokens; the comment is ignored.</p>{tok}</div></div>')
+
+
 def code_label(s):
     return "`" + s.replace("`", "'") + "`"  # file names are untrusted: keep them inline code
 
 
 GLUED_MARKER = re.compile(r"\s*" + ask.MARKER.pattern)  # the marker and the space before it
+STOP = {"the", "and", "for", "with", "that", "this", "from", "are", "not", "its", "into", "file", "files", "line", "lines"}
+
+
+def cite_words(said, code):
+    """Names in the cited code that the question or answer mentions: the review flashes them inside the cited block."""
+    want = {w.lower() for w in re.findall(r"\w{3,}", said)} - STOP
+    return sorted({w for w in re.findall(r"[A-Za-z_]\w{2,}", code) if w.lower() in want})[:6]
 
 
 @st.fragment
@@ -237,7 +322,8 @@ def ask_ai():
         st.html("""<script>if (!window.djCite) { window.djCite = 1; document.addEventListener("click", (e) => {
   const b = e.target.closest(".dj-cite"), f = document.querySelector(".st-key-review iframe");
   if (!b || !f) return;
-  f.contentWindow.postMessage({type: "dejavu:open", file: b.dataset.file, line: +b.dataset.line, end: +b.dataset.end}, "*");
+  f.contentWindow.postMessage({type: "dejavu:open", file: b.dataset.file, line: +b.dataset.line, end: +b.dataset.end,
+    words: (b.dataset.words || "").split(" ").filter(Boolean)}, "*");
   document.querySelector(".st-key-askai button").click();
 }); }</script>""", unsafe_allow_javascript=True)
         st.caption("Answers come only from this batch's code and cite file and line. It can't mark or rank pairs.")
@@ -254,7 +340,8 @@ def ask_ai():
                         lines = f"lines {c['start']}–{c['end']}"
                         if c["file"] in in_review:  # click to open the file in the review screen
                             st.html(f'<button type="button" class="dj-cite" data-file="{escape(c["file"])}" '
-                                    f'data-line="{c["start"]}" data-end="{c["end"]}"><span class="n">{c["n"]}</span>'
+                                    f'data-line="{c["start"]}" data-end="{c["end"]}" '
+                                    f'data-words="{escape(" ".join(cite_words(turn["q"] + " " + turn["answer"], c["code"])))}"><span class="n">{c["n"]}</span>'
                                     f'<code>{escape(c["file"])}</code>{lines}<span class="go">Open ↗</span></button>')
                             continue
                         with st.popover(f":orange-badge[{c['n']}] {code_label(c['file'])} {lines}"):  # not in the review: show the lines here
@@ -278,11 +365,12 @@ def ai_chip(slot):
     Returns True when the index still has to be built (after the page is drawn, with progress in `slot`)."""
     if not ask.available():
         has_key = bool(ask.key())
-        with slot.container(key="aichip_off"), st.popover("AI offline" if has_key else "AI off", icon=":material/cloud_off:"):
+        with slot.container(key="aichip_off"), st.popover("AI RAG offline" if has_key else "AI RAG off", icon=":material/cloud_off:"):
             st.caption("Couldn't reach the model, or it rejected the key." if has_key else "Ask AI needs a Gemini API key.")
             if not os.getenv("LLM_API_KEY"):  # a server secret can't be replaced from the page
                 with st.form("aikey", border=False):
-                    k = st.text_input("API key", type="password", help="Kept in memory for this browser tab only. Never saved.")
+                    k = st.text_input("API key", type="password", placeholder="Paste your Gemini key", autocomplete="off")
+                    st.caption("Kept in memory for this browser tab only. Never saved.")
                     if st.form_submit_button("Use key", type="primary") and k.strip():
                         st.session_state.update(llm_key=k.strip(), ask_index=None, ask_err=None)
                         st.rerun()
@@ -290,7 +378,7 @@ def ai_chip(slot):
     idx, err = st.session_state.get("ask_index"), st.session_state.get("ask_err")
     if idx is None and not err:
         return True
-    with slot.container(key="aichip_error" if err else "aichip_ready"),             st.popover("AI error" if err else "AI ready", icon=":material/error:" if err else ":material/check_circle:"):
+    with slot.container(key="aichip_error" if err else "aichip_ready"),             st.popover("AI RAG error" if err else "AI RAG ready",icon=":material/error:" if err else ":material/check_circle:"):
         if err:
             st.error(err)
         else:
@@ -314,14 +402,17 @@ bar.container(key="brand").markdown("**Dejavu** · code similarity review" + (f"
 if html:
     ai_slot = bar.empty()
     need_index = ai_chip(ai_slot)
-    with bar.popover("New scan"):
+    acts = bar.container(key="actions", horizontal=True, horizontal_alignment="right", vertical_alignment="center")
+    if st.session_state.get("bbar"):  # Scan was just clicked in this menu: close it so the bars and review show
+        st.session_state.newscan = False
+    with acts.popover("New scan", key="newscan", on_change="rerun"):  # rerun: tracks open state, so Scan can close it
         job = upload_form("bar")
-    if bar.button("Demo set"):
+    if acts.button("Demo set"):
         job = DEMO_JOB
-    bar.download_button("Offline report", html, "dejavu-report.html", "text/html",
+    acts.download_button("Offline report", html, "dejavu-report.html", "text/html",
                         help="The same review screen as one HTML file. Opens without a server.")
-    bar.download_button("All pairs CSV", st.session_state.csv, "dejavu-pairs.csv", "text/csv")
-    with bar:
+    acts.download_button("All pairs CSV", st.session_state.csv, "dejavu-pairs.csv", "text/csv")
+    with acts:
         ask_ai()
 else:
     # the review screen has its own toggle; this one covers the landing page
@@ -353,14 +444,7 @@ else:
             job = upload_form("main") or job
     with right.container(key="how"):
         st.subheader("How it works")
-        st.code("# Student A                # Student B\n"
-                "def total(nums):           def add_all(values):\n"
-                "    s = 0                      result = 0\n"
-                "    for x in nums:             for v in values:\n"
-                "        s += x                     result += v\n"
-                "    return s                   return result", language="python")
-        st.markdown("Both become the same tokens:")
-        st.code("def ID ( ID ) : ID = LIT LOOP ID in ID : ID += ID return ID", language=None, wrap_lines=True)
+        st.html(evidence_board())
         st.markdown("Names, numbers and loop styles stop mattering. Short runs of these tokens are compared across "
                     "every pair, and runs that few students share count most.")
         st.subheader("What you get")
