@@ -1,4 +1,5 @@
 """Odd inputs a hidden test set may contain. Run from repo root: .venv\\Scripts\\python -m tests.test_edge_cases"""
+import re
 import tempfile
 import time
 import zipfile
@@ -59,14 +60,28 @@ assert names("x = 1\u200b\n") == ["ZERO WIDTH SPACE"]
 assert names("a = 1\nb\u00a0= 2\n") == ["NO-BREAK SPACE"] and hidden_chars("a\nb\u00a0")[0]["line"] == 2
 assert names("s = '\u202e'\n") == ["RIGHT-TO-LEFT OVERRIDE"], "bidi control (Trojan Source)"
 assert names("d\u0430ta = 1\n") == ["CYRILLIC SMALL LETTER A in 'd\u0430ta'"], "Latin+Cyrillic look-alike word"
-# Not flagged: leading BOM, a Russian comment, accented letters, bytes replaced while decoding.
-for clean in ("\ufeffx = 1\n", "# \u043f\u0440\u0438\u0432\u0435\u0442 world\n", "x = '\u00e9\ufffd'\n"):
+assert names("x\u3164 = 1\n") == ["HANGUL FILLER"], "blank letter that passes as part of a name"
+assert names("x = 1  # " + "".join(chr(0xE0000 + ord(c)) for c in "hi")) == ["TAG CHARACTER x2"], "one flag per tag run"
+assert names("x = 1  # \ufe01\ufe02\ufe03\n") == ["VARIATION SELECTOR-2 x3"], "variation-selector run hides bytes"
+assert names("y\ufe0f = 1\n") == ["VARIATION SELECTOR-16"], "a selector on a letter selects nothing"
+# Not flagged: leading BOM, a Russian comment, accented letters, bytes replaced while decoding, an emoji's selector.
+for clean in ("\ufeffx = 1\n", "# \u043f\u0440\u0438\u0432\u0435\u0442 world\n", "x = '\u00e9\ufffd'\n",
+              "s = '\u26a0\ufe0f'\n"):
     assert hidden_chars(clean) == [], f"false flag on {clean!r}"
 with tempfile.TemporaryDirectory() as d:
     (Path(d) / "a.py").write_text(ORIG.replace("\n", "\u200b\n", 1), "utf-8")
     (Path(d) / "b.py").write_text(ORIG, "utf-8")
     r = scan(d)
     assert list(r["flags"]) == ["a.py"] and r["pairs"][0]["score"] > 0.99, "flagged, and the hidden char cannot hide the copy"
+# Java and C++ grammars reject variation selectors and Hangul fillers inside names: a copy dropped to 0.73-0.75.
+junk = "".join(map(chr, (0xFE01, 0xFE02, 0x3164)))
+for ext in ("java", "cpp"):
+    src = (Path(__file__).parent / "fixtures" / f"orig.{ext}").read_text()
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / f"a.{ext}").write_text(re.sub(r"(?<=[A-Za-z])[(]", junk + "(", src), "utf-8")
+        (Path(d) / f"b.{ext}").write_text(src, "utf-8")
+        r = scan(d)
+        assert list(r["flags"]) == [f"a.{ext}"] and r["pairs"][0]["score"] > 0.99, (ext, r["pairs"][0]["score"])
 
 # Starter code: two independent solutions that both include the same instructor template look like copies until
 # the template is passed as base.

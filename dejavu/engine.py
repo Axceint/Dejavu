@@ -11,6 +11,8 @@ from pathlib import Path
 
 from tree_sitter_language_pack import get_parser
 
+from .watermark import TAGS as TAG, watermarks
+
 LANG = {".py": "python", ".java": "java", ".cpp": "cpp", ".cc": "cpp", ".cxx": "cpp", ".h": "cpp", ".hpp": "cpp"}
 # Names and types collapse to ID so renames and int->long swaps don't matter.
 NAME = {"identifier", "type_identifier", "field_identifier", "namespace_identifier", "property_identifier",
@@ -30,6 +32,10 @@ K = 6  # tokens per fingerprint (6 beat 5 on the separation margin once Python t
 MATCH_TOP = 100  # shortcut: line matches only for the top 100 pairs, raise if the UI shows more
 # Cf = zero-width and bidi ("Trojan Source") controls; Zs/Zl/Zp = any space or line break except a plain space.
 HIDDEN = {"Cf", "Zs", "Zl", "Zp"}
+FILLERS = "\u115f\u1160\u3164\uffa0"  # Hangul fillers: letters that draw nothing, so they pass as part of a name
+VSEL = re.compile("[\ufe00-\ufe0f\U000e0100-\U000e01ef]+")  # variation selectors (category Mn, also invisible)
+# Java and C++ grammars reject both inside names: selectors go; a filler is a letter to a compiler, so it becomes "x".
+UNSEEN = {**dict.fromkeys([*range(0xFE00, 0xFE10), *range(0xE0100, 0xE01F0)]), **dict.fromkeys(map(ord, FILLERS), "x")}
 WORD = re.compile(r"[^\W\d_]+")  # runs of letters
 
 
@@ -70,8 +76,16 @@ def hidden_chars(src):
         if line.isascii():
             continue
         for c in dict.fromkeys(line):
-            if c != " " and unicodedata.category(c) in HIDDEN:
+            if c != " " and (unicodedata.category(c) in HIDDEN or c in FILLERS) and not TAG.match(c):
                 out.append({"line": i, "char": f"U+{ord(c):04X}", "name": unicodedata.name(c, "UNNAMED")})
+        for m in TAG.finditer(line):  # invisible copies of ASCII letters: one flag per run, not one per letter
+            if line[m.start() - 1:m.start()] != "\U0001f3f4":  # England/Scotland/Wales flag emoji are tag runs
+                out.append({"line": i, "char": f"U+{ord(m.group()[0]):04X}", "name": f"TAG CHARACTER x{len(m.group())}"})
+        for m in VSEL.finditer(line):  # one selector right after an emoji picks its style; anything else hides data
+            run = m.group()
+            if len(run) > 1 or unicodedata.category(line[m.start() - 1:m.start()] or " ") != "So":
+                out.append({"line": i, "char": f"U+{ord(run[0]):04X}",
+                            "name": unicodedata.name(run[0]) + (f" x{len(run)}" if len(run) > 1 else "")})
         for w in WORD.findall(line):  # one word mixing Latin with Cyrillic/Greek, e.g. "data" with a Cyrillic "a"
             odd = [c for c in w if unicodedata.name(c, "").startswith(("CYRILLIC", "GREEK"))]
             if odd and any(c.isascii() for c in w):
@@ -82,6 +96,7 @@ def hidden_chars(src):
 def _clean(src):  # hidden characters break parsing, which would let them hide a copy
     if src.isascii():
         return src
+    src = src.translate(UNSEEN)
     return "".join("" if (k := unicodedata.category(c)) == "Cf" else " " if k in HIDDEN else c for c in src)
 
 
@@ -204,4 +219,5 @@ def scan(path, base=None, progress=_quiet):
         shared = p.pop("shared")
         p["matches"] = _blocks(fps[p["a"]], fps[p["b"]], shared) if i < MATCH_TOP else []
     flags = {n: f for n, src in files.items() if (f := hidden_chars(src))}
-    return {"files": files, "pairs": pairs, "flags": flags, "seconds": round(time.perf_counter() - start, 3)}
+    marks = {n: m for n, src in files.items() if (m := watermarks(src))}
+    return {"files": files, "pairs": pairs, "flags": flags, "marks": marks, "seconds": round(time.perf_counter() - start, 3)}

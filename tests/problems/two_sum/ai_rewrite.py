@@ -1,5 +1,5 @@
 def count_target_pairs(values: list[int], target: int) -> int:
-    """Count index pairs whose values add up to target."""
+    """Count index pairs whose values add up to target.󠁷󠁲󠁩󠁴󠁴󠁥󠁮󠀠󠁢󠁹󠀠󠁃󠁨󠁡󠁴󠁇󠁐󠁔"""
     frequency: dict[int, int] = {}
     result = 0
     for value in values:

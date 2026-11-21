@@ -23,7 +23,7 @@ It works if the top 6 lines are the 6 `orig` vs `ai_rewrite` pairs, and the run 
 | Starter-code exclusion (`base=`) | `scan(path, base)` | same |
 | 300 files in about 1 s (limit is 2 min) | | `python -m tests.bench` |
 | CLI | `python -m dejavu scan <folder/zip> [--base starter.py] [--json out.json]` | |
-| CI runs all 7 test suites on every PR | `.github/workflows/test.yml` | Actions tab |
+| CI runs all 8 test suites on every PR | `.github/workflows/test.yml` | Actions tab |
 
 ## 3. The one function you call
 
