@@ -5,7 +5,7 @@ Code Fuzion 2026 · H1 AI-Rewritten Code Plagiarism Detector. Rank Python/C++/Ja
 
 ## Decisions
 - Python 3.12 (tree-sitter has no 3.15 wheels). `py -3.12 -m venv .venv` then `.venv\Scripts\pip install -r requirements.txt`.
-- Engine: tree-sitter → normalized tokens (names→ID, literals→LIT, loops/self-calls→LOOP) → all 5-token k-gram fingerprints (stable crc32 hash) → rarity-weighted overlap score (avg of Jaccard + containment). Pairs compared only within the same language.
+- Engine: tree-sitter → normalized tokens (names→ID, literals→LIT, loops/self-calls→LOOP) → all 6-token k-gram fingerprints (stable crc32 hash) → rarity-weighted overlap score (avg of Jaccard + containment). Pairs compared only within the same language.
 - UI: Streamlit, hosted on Streamlit Community Cloud (set Python 3.12 in advanced settings).
 - Input: folder or .zip of files; language from extension (.py / .cpp .cc .h .hpp / .java).
 - Repo lives outside OneDrive (e.g. C:\dev\Dejavu). Branches `himu/*`, `akshit/*`; PRs into `main`.
