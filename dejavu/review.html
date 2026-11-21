@@ -49,6 +49,12 @@ kbd{font:11px/1 var(--mono);padding:2px 4px;border:1px solid var(--line2);border
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 
 .app{height:100vh;display:grid;grid-template-columns:300px minmax(0,1fr);grid-template-rows:auto minmax(0,1fr)}
+.app.noside,.app.max{grid-template-columns:minmax(0,1fr)}
+.app.max{grid-template-rows:minmax(0,1fr)}
+.app.noside .side,.app.max .side,.app.max .top,.app.max .dh,.app.max .why{display:none}
+.app.max .legend{padding-top:8px}
+.legend .mx{margin-left:auto}
+#maxBtn[aria-pressed=true] .i-max,#maxBtn[aria-pressed=false] .i-min{display:none}
 .top{grid-column:1/-1;display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--panel)}
 .tiles{display:flex;align-items:stretch}
 .tile{display:grid;align-content:center;gap:3px;padding:0 18px;border-left:1px solid var(--line);min-width:84px}
@@ -184,6 +190,7 @@ dialog td:first-child{width:110px}
 <body>
 <div class="app" id="app">
   <header class="top">
+    <button class="btn icon" id="sideBtn" type="button" aria-controls="side" aria-expanded="true"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 4h11M2.5 8h11M2.5 12h11"/></svg></button>
     <div class="tiles" id="stats"></div>
     <div class="tile"><span class="tv" id="prog" aria-live="polite"></span><span class="tl" id="progL">reviewed</span><span class="pbar" aria-hidden="true"><i id="pbar"></i></span></div>
     <span class="sp"></span>
@@ -195,7 +202,7 @@ dialog td:first-child{width:110px}
     </button>
     <button class="btn icon" id="helpBtn" type="button" aria-label="Keyboard shortcuts">?</button>
   </header>
-  <aside class="side" aria-label="Pairs and files">
+  <aside class="side" id="side" aria-label="Pairs and files">
     <div class="seg" role="tablist" aria-label="View">
       <button role="tab" id="tPairs" aria-selected="true" type="button">Pairs</button>
       <button role="tab" id="tFiles" aria-selected="false" type="button">Files</button>
@@ -222,6 +229,8 @@ dialog td:first-child{width:110px}
   <h2 id="helpT">Keyboard shortcuts</h2>
   <table>
     <tr><td><kbd>J</kbd> <kbd>K</kbd></td><td>Next / previous pair</td></tr>
+    <tr><td><kbd>B</kbd></td><td>Show or hide the list</td></tr>
+    <tr><td><kbd>M</kbd></td><td>Maximise the comparison (<kbd>Esc</kbd> to leave)</td></tr>
     <tr><td><kbd>F</kbd></td><td>Mark as likely copy, go to next</td></tr>
     <tr><td><kbd>X</kbd></td><td>Mark as not a copy, go to next</td></tr>
     <tr><td><kbd>U</kbd></td><td>Clear the decision</td></tr>
@@ -315,6 +324,25 @@ let codePx = 13;
 function setCode(px) { codePx = Math.max(11, Math.min(20, px)); root.style.setProperty("--code", codePx + "px"); pref("code", codePx); }
 try { setColors(JSON.parse(pref("colors") || "{}"), false); } catch (e) { setColors({}, false); }
 setCode(+pref("code") || 13);
+function setSide(open, save) {
+  $("#app").classList.toggle("noside", !open);
+  const b = $("#sideBtn"), label = open ? "Hide the list" : "Show the list";
+  b.setAttribute("aria-expanded", open); b.setAttribute("aria-label", label); b.title = label + " (B)";
+  if (save) pref("side", open ? "open" : "closed");
+}
+const toggleSide = () => setSide($("#app").classList.contains("noside"), true);
+$("#sideBtn").onclick = toggleSide;
+setSide(pref("side") !== "closed", false);
+let maxed = false;
+function setMax(on) {
+  maxed = on;
+  $("#app").classList.toggle("max", on);
+  const b = $("#maxBtn"), label = on ? "Leave maximised view" : "Maximise the comparison";
+  if (b) { b.setAttribute("aria-pressed", on); b.setAttribute("aria-label", label); b.title = label + (on ? " (M or Esc)" : " (M)"); }
+  // the host page hides its own top bar too (see app.py)
+  try { if (window.parent !== window) { const h = window.parent.document.documentElement; if (on) h.dataset.dejavuMax = ""; else delete h.dataset.dejavuMax; } } catch (e) { /* other origin: only this page maximises */ }
+}
+setMax(false); // a rerun of the host reloads this page: start normal
 $("#presets").innerHTML = Object.entries(PRESETS).map(([n, c]) =>
   `<button type="button" data-p="${n}"><i style="background:${c.match}"></i><i style="background:${c.verb}"></i><i style="background:${c.hot}"></i> ${n}</button>`).join("");
 $("#presets").onclick = (e) => { const b = e.target.closest("[data-p]"); if (b) setColors(PRESETS[b.dataset.p], true); };
@@ -497,7 +525,7 @@ function renderDetail() {
       <div class="meta"><span class="score" title="Similarity score, 0 to 1">${p.score.toFixed(2)}</span><span class="band">${b[2]}</span><span>· ${beats}</span></div>
     </div>
     <details class="why"${pref("why") === "closed" ? "" : " open"}><summary>Why this pair ranks here</summary><dl class="facts">${facts}</dl></details>
-    <div class="legend"><button type="button" class="lg" id="legendBtn" aria-haspopup="dialog" aria-expanded="false" title="Change highlight colours (C)"><span><i style="background:var(--match)"></i>Same structure</span><span><i style="background:var(--verb)"></i>Identical rare line</span><span><i style="background:var(--hot)"></i>Selected fragment</span><span><i style="background:var(--ai)"></i>AI-style comment</span><span class="e">Colours</span></button><span>Click a highlighted line to align both sides</span></div>
+    <div class="legend"><button type="button" class="lg" id="legendBtn" aria-haspopup="dialog" aria-expanded="false" title="Change highlight colours (C)"><span><i style="background:var(--match)"></i>Same structure</span><span><i style="background:var(--verb)"></i>Identical rare line</span><span><i style="background:var(--hot)"></i>Selected fragment</span><span><i style="background:var(--ai)"></i>AI-style comment</span><span class="e">Colours</span></button><span>Click a highlighted line to align both sides</span><button type="button" class="btn icon mx" id="maxBtn" aria-pressed="false"><svg class="i-max" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10"/></svg><svg class="i-min" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 2.5V6H2.5M13.5 6H10V2.5M10 13.5V10h3.5M2.5 10H6v3.5"/></svg></button></div>
     <div class="panes">
       ${[["A", A, p.cov ? p.cov[0] : null], ["B", B, p.cov ? p.cov[1] : null]].map(([s, f, c]) => `
         <section class="pane" aria-label="File ${s}"><header><span class="s">${s}</span><span class="n" title="${esc(f.name)}">${esc(f.name)}</span>
@@ -506,6 +534,8 @@ function renderDetail() {
     </div>`;
   paintCode(p);
   wireDetail(p, byLen);
+  $("#maxBtn").onclick = () => setMax(!maxed);
+  setMax(maxed);
 }
 
 let lineEls = {A: [], B: []}, fragAt = {A: [], B: []};
@@ -722,7 +752,8 @@ document.addEventListener("keydown", (e) => {
     "/": () => $("#q").focus(), "?": () => $("#help").showModal(), t: toggleTheme,
     h: () => { const n = Object.keys(PRESETS), cur = n.find((k) => JSON.stringify(PRESETS[k]) === JSON.stringify(colors));
       const nx = n[(n.indexOf(cur) + 1) % n.length]; setColors(PRESETS[nx], true); toast("Colours: " + nx); },
-    c: openColors,
+    c: openColors, b: toggleSide, m: () => $("#maxBtn") && setMax(!maxed),
+    escape: () => maxed && setMax(false),
     "-": () => resize(-1), "=": () => resize(1), "+": () => resize(1),
   };
   const fn = keys[e.key.toLowerCase()] || keys[e.key];

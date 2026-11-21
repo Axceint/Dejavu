@@ -27,10 +27,13 @@ header[data-testid="stHeader"], footer {display:none}
 [data-testid="stProgressBarTrack"] {height:6px; border-radius:3px; background:var(--dj-sunk, rgba(128,128,128,.18))}
 [data-testid="stProgressBarTrack"] > div {border-radius:3px; background:var(--dj-accent, #a0522d)}
 .block-container {padding:12px 20px; max-width:none}
-/* The review screen fills the window under the top bar and the unzip/scan bars:
-   12px pad + 40px top bar + 16px gap + 36px bars + 16px gap + 12px pad = 132px. */
-.st-key-phases:has([data-testid="stProgress"]) {min-height:36px}
-.st-key-review iframe {display:block; height:calc(100dvh - 132px) !important; min-height:520px;
+/* The review screen fills the window under the top bar: 12px pad + 40px top bar + 16px gap + 12px pad = 80px.
+   The unzip/scan bars only exist while a scan runs. */
+.st-key-phases:not(:has([data-testid="stProgress"])) {display:none}
+/* "Maximise" in the review screen sets data-dejavu-max here: the frame gives it the whole window */
+html[data-dejavu-max] .st-key-topbar, html[data-dejavu-max] .st-key-phases {display:none}
+html[data-dejavu-max] .st-key-review iframe {height:calc(100dvh - 24px) !important}
+.st-key-review iframe {display:block; height:calc(100dvh - 80px) !important; min-height:520px;
   border:1px solid var(--dj-line, rgba(128,128,128,.25)); border-radius:10px}
 .st-key-review [data-testid="stElementContainer"] {flex:0 0 auto !important; height:auto !important}
 .st-key-theme iframe {display:block; border:0}
@@ -87,13 +90,13 @@ STAGES = {"parse": (0.0, 0.6, "parsing **{:,}** / {:,} files"), "compare": (0.6,
 
 
 def run(job, area):
-    """Scan an upload (or the demo set) with live unzip and scan bars in `area`. Their final labels are kept
-    so the results page can show how long each part took."""
+    """Scan an upload (or the demo set) with live unzip and scan bars in `area`. They go away with the rerun
+    that shows the results; the scan time is on the review screen."""
     zipped = "zip" in job
     now_verb, done_verb = ("Unzipping", "Unzipped") if zipped else ("Reading files", "Read")
     read_bar = area.progress(0.0, text=f"{now_verb}…")
     scan_bar = area.progress(0.0, text="Scanning · waiting for files")
-    t = {"start": time.perf_counter(), "read": None, "shown": 0.0}
+    t = {"read": None, "shown": 0.0}
 
     def tick(stage, done, total):
         now = time.perf_counter()
@@ -125,12 +128,7 @@ def run(job, area):
     except (FileNotFoundError, ValueError, zipfile.BadZipFile) as e:
         st.session_state.err = f"Couldn't scan {job['name']}: {e}"
         return
-    end = time.perf_counter()
-    read_end = t["read"] or end
-    st.session_state.update(
-        data=data, csv=all_pairs_csv(r), label=job["name"], err=None,
-        phases=[f"{done_verb} **{len(r['files']):,}** files · **{read_end - t['start']:.2f} s**",
-                f"Scanned · **{len(r['pairs']):,}** pairs share code · **{end - read_end:.2f} s**"])
+    st.session_state.update(data=data, csv=all_pairs_csv(r), label=job["name"], err=None)
 
 
 def upload_form(key):
@@ -148,7 +146,7 @@ job = None
 data = st.session_state.get("data")
 # rendered per run so the review screen opens in the frame's current light/dark theme
 html = render(data, st.context.theme.type) if data else None
-bar = st.columns([5, 1.2, 1.2, 1.4, 1.2], vertical_alignment="center")
+bar = st.container(key="topbar").columns([5, 1.2, 1.2, 1.4, 1.2], vertical_alignment="center")
 label = st.session_state.get("label", "").replace("`", "'")  # upload name is untrusted: keep it inline code
 bar[0].container(key="brand").markdown("**Dejavu** · code similarity review" + (f" · `{label}`" if html else ""))
 if html:
@@ -167,7 +165,7 @@ else:
 if st.session_state.get("err"):
     st.error(st.session_state.err)
 
-# Unzip and scan bars: live while a scan runs, then kept (full, with timings) above the results.
+# Unzip and scan bars: shown only while a scan runs.
 area = st.container(key="phases", horizontal=True, gap="large")
 
 if html:
@@ -200,6 +198,3 @@ else:
 if job:
     run(job, area)
     st.rerun()
-elif html and st.session_state.get("phases"):
-    for text in st.session_state.phases:
-        area.progress(1.0, text=text)
