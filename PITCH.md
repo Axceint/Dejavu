@@ -41,7 +41,7 @@ A plain text compare fails on all of these.
    - names → `ID`, numbers → `LIT`
    - loops *and* recursion → `LOOP`
    → Renamed code becomes **identical**.
-3. **Cut each file into small pieces** (5 words each).
+3. **Cut each file into small pieces** (6 words each).
    → Reordering doesn't help, because we only check *which* pieces exist.
 4. **Rare pieces count more.**
    → Honest students who solved the same problem don't get flagged.
@@ -55,19 +55,19 @@ A plain text compare fails on all of these.
 
 ### 5a. The pieces
 
-After step 2, a file is a long list of words like `def ID ( ID ) : ID = LIT LOOP ...`. We slide a window of **5 words** along it, and each window is one **piece**:
+After step 2, a file is a long list of words like `def ID ( ID ) : ID = LIT LOOP ...`. We slide a window of **6 words** along it, and each window is one **piece**:
 
 ```
-def ID ( ID )      ← piece 1
-ID ( ID ) :        ← piece 2
-( ID ) : ID        ← piece 3
+def ID ( ID ) :      ← piece 1
+ID ( ID ) : ID       ← piece 2
+( ID ) : ID =        ← piece 3
 ...
 ```
 
-**Why 5?**
+**Why 6?**
 - **Too small (2–3):** every file shares pieces like `ID = LIT`, so everything looks copied.
 - **Too big (10+):** one small edit breaks the piece, so copies slip through.
-- **5** sits in the middle, and works in our tests for all 3 languages.
+- **6** sits in the middle. We started with 5; 6 widened the gap between the weakest real copy and the strongest honest pair in Python (+0.03 → +0.06) and C++ (+0.03 → +0.05). Java stays far apart either way.
 
 ### 5b. Rarity weight: not all pieces are equal
 
@@ -126,7 +126,7 @@ A score alone doesn't convince anyone, so the app explains each pair:
 
 ## 6. How we prove it works (our evaluation)
 
-Five test suites run **automatically on every change** (GitHub Actions). A change can't merge if any fails.
+Seven test suites run **automatically on every change** (GitHub Actions). A change can't merge if any fails.
 
 | Test | What it checks | Pass rule |
 |---|---|---|
@@ -135,6 +135,8 @@ Five test suites run **automatically on every change** (GitHub Actions). A chang
 | `test_edge_cases` | Weird input: empty, broken or huge files, wrong text encoding, Mac zip junk, hidden characters, starter code | Never crashes, never fake-flags |
 | `bench` | 300 files, worst case | Under 2 minutes (we take about 1 s) |
 | `test_app` | The web app: demo set, ranking, highlighting, safe display of uploaded code | Top 6 = real copies; uploaded code can't inject HTML |
+| `test_margin` | Gap between the weakest real copy and the strongest honest pair, per language | Gap of at least 0.04 in every language |
+| `test_ask` | Ask AI with a fake model: code chunks, search, citations | Every citation points to real lines; the scan result is unchanged |
 
 **Results:**
 
@@ -142,9 +144,9 @@ Five test suites run **automatically on every change** (GitHub Actions). A chang
 |---|---|
 | Speed | **300 files in about 1 second** |
 | Ranking | **All 6 AI-rewritten copies rank #1–6**, above every honest pair |
-| Copy vs honest (Java) | AI rewrite **0.56** vs honest solution **0.22** |
-| Starter-code skip | Honest pair **0.49 → 0.01** |
-| Hidden character | A copy's score dropped to 0.89 → fixed back to **1.0** |
+| Copy vs honest (Java) | AI rewrite **0.48** vs honest solution **0.15** |
+| Starter-code skip | Honest pair **0.475 → 0.005** |
+| Hidden character | A copy's score dropped to 0.87 → fixed back to **1.0** |
 
 ---
 
@@ -197,6 +199,6 @@ Five test suites run **automatically on every change** (GitHub Actions). A chang
 | "Why not just use ChatGPT?" | 45,000 pairs means slow, costly, and a different answer each run. Ours is free, ~1 s, and repeatable. |
 | "Two honest students write the same code. False positive?" | Rarity weighting: common code counts almost nothing (0.69 vs 5.02). In our tests, honest pairs rank below every copy. |
 | "Can you detect AI-written code?" | No, and we don't claim to. Real AI watermarks need the AI company's secret key. Hidden characters are only a *hint*. |
-| "Why 5-word pieces?" | Smaller matches everything, bigger breaks on small edits (section 5a). |
+| "Why 6-word pieces?" | Smaller matches everything, bigger breaks on small edits (section 5a). |
 | "What would you do with more time?" | Cross-language copies, and testing on a real labelled dataset. |
-| "How did you work as a team?" | Issue → kanban board → branch per feature → pull request → 5 automated test suites must pass before merge. |
+| "How did you work as a team?" | Issue → kanban board → branch per feature → pull request → 7 automated test suites must pass before merge. |
