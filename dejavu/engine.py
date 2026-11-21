@@ -34,6 +34,8 @@ MATCH_TOP = 100  # shortcut: line matches only for the top 100 pairs, raise if t
 HIDDEN = {"Cf", "Zs", "Zl", "Zp"}
 FILLERS = "\u115f\u1160\u3164\uffa0"  # Hangul fillers: letters that draw nothing, so they pass as part of a name
 VSEL = re.compile("[\ufe00-\ufe0f\U000e0100-\U000e01ef]+")  # variation selectors (category Mn, also invisible)
+# Java and C++ grammars reject both inside names: selectors go; a filler is a letter to a compiler, so it becomes "x".
+UNSEEN = {**dict.fromkeys([*range(0xFE00, 0xFE10), *range(0xE0100, 0xE01F0)]), **dict.fromkeys(map(ord, FILLERS), "x")}
 WORD = re.compile(r"[^\W\d_]+")  # runs of letters
 
 
@@ -94,6 +96,7 @@ def hidden_chars(src):
 def _clean(src):  # hidden characters break parsing, which would let them hide a copy
     if src.isascii():
         return src
+    src = src.translate(UNSEEN)
     return "".join("" if (k := unicodedata.category(c)) == "Cf" else " " if k in HIDDEN else c for c in src)
 
 

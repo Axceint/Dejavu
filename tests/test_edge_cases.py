@@ -1,4 +1,5 @@
 """Odd inputs a hidden test set may contain. Run from repo root: .venv\\Scripts\\python -m tests.test_edge_cases"""
+import re
 import tempfile
 import time
 import zipfile
@@ -72,6 +73,15 @@ with tempfile.TemporaryDirectory() as d:
     (Path(d) / "b.py").write_text(ORIG, "utf-8")
     r = scan(d)
     assert list(r["flags"]) == ["a.py"] and r["pairs"][0]["score"] > 0.99, "flagged, and the hidden char cannot hide the copy"
+# Java and C++ grammars reject variation selectors and Hangul fillers inside names: a copy dropped to 0.73-0.75.
+junk = "".join(map(chr, (0xFE01, 0xFE02, 0x3164)))
+for ext in ("java", "cpp"):
+    src = (Path(__file__).parent / "fixtures" / f"orig.{ext}").read_text()
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / f"a.{ext}").write_text(re.sub(r"(?<=[A-Za-z])[(]", junk + "(", src), "utf-8")
+        (Path(d) / f"b.{ext}").write_text(src, "utf-8")
+        r = scan(d)
+        assert list(r["flags"]) == [f"a.{ext}"] and r["pairs"][0]["score"] > 0.99, (ext, r["pairs"][0]["score"])
 
 # Starter code: two independent solutions that both include the same instructor template look like copies until
 # the template is passed as base.

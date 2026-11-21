@@ -87,6 +87,7 @@ Code copied out of a chat window or a web page sometimes carries characters you 
 - odd spaces such as the no-break space
 - bidirectional controls that make code display differently from how it runs ("Trojan Source")
 - look-alike letters, such as a Cyrillic `а` inside an English word
+- blank Hangul filler letters and variation selectors, which pass as part of a name and can carry hidden bytes
 
 Dejavu does two things with them:
 
