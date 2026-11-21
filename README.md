@@ -26,7 +26,7 @@ A: def ID ( ID ) : ID = LIT LOOP ID in ID : ID += ID return ID
 B: def ID ( ID ) : ID = LIT LOOP ID in ID : ID += ID return ID
 ```
 
-The renaming is gone. Next, Dejavu cuts each file into overlapping 5-word pieces and counts how many pieces two files share. Rare pieces count more than pieces everyone writes. It does this for every pair and shows the highest scores first. The rest of this README is the detail.
+The renaming is gone. Next, Dejavu cuts each file into overlapping 6-word pieces and counts how many pieces two files share. Rare pieces count more than pieces everyone writes. It does this for every pair and shows the highest scores first. The rest of this README is the detail.
 
 ## How it works
 
@@ -48,7 +48,7 @@ submissions (folder or .zip)
 | Names → `ID`, types → `ID` | Variable/function renames, `int` → `long` |
 | Loops and self-calls → `LOOP` | Loop ↔ recursion rewrites |
 | Drop braces, `;`, `const`/`static`/`final`, unify `++x`/`x++` | Style-only AI rewrites |
-| Set of 5-token fingerprints (order ignored) | Reordered functions |
+| Set of 6-token fingerprints (order ignored) | Reordered functions |
 | **Rarity weighting** (fingerprint in 3 files counts far more than one in 150) | False positives from code *everyone* writes for the same task (input reading, standard loops) |
 | Score = average of Jaccard (shared ÷ total) and containment (shared ÷ smaller file, floored at half the bigger file) | Copies padded with extra code, without letting a tiny boilerplate file look "fully contained" |
 

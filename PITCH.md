@@ -41,7 +41,7 @@ A plain text compare fails on all of these.
    - names → `ID`, numbers → `LIT`
    - loops *and* recursion → `LOOP`
    → Renamed code becomes **identical**.
-3. **Cut each file into small pieces** (5 words each).
+3. **Cut each file into small pieces** (6 words each).
    → Reordering doesn't help, because we only check *which* pieces exist.
 4. **Rare pieces count more.**
    → Honest students who solved the same problem don't get flagged.
@@ -55,19 +55,19 @@ A plain text compare fails on all of these.
 
 ### 5a. The pieces
 
-After step 2, a file is a long list of words like `def ID ( ID ) : ID = LIT LOOP ...`. We slide a window of **5 words** along it, and each window is one **piece**:
+After step 2, a file is a long list of words like `def ID ( ID ) : ID = LIT LOOP ...`. We slide a window of **6 words** along it, and each window is one **piece**:
 
 ```
-def ID ( ID )      ← piece 1
-ID ( ID ) :        ← piece 2
-( ID ) : ID        ← piece 3
+def ID ( ID ) :    ← piece 1
+ID ( ID ) : ID     ← piece 2
+( ID ) : ID =      ← piece 3
 ...
 ```
 
-**Why 5?**
+**Why 6?**
 - **Too small (2–3):** every file shares pieces like `ID = LIT`, so everything looks copied.
 - **Too big (10+):** one small edit breaks the piece, so copies slip through.
-- **5** sits in the middle, and works in our tests for all 3 languages.
+- **6** sits in the middle, and beat 5 on the separation margin in our tests for all 3 languages.
 
 ### 5b. Rarity weight: not all pieces are equal
 
