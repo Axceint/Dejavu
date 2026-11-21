@@ -59,8 +59,13 @@ assert names("x = 1\u200b\n") == ["ZERO WIDTH SPACE"]
 assert names("a = 1\nb\u00a0= 2\n") == ["NO-BREAK SPACE"] and hidden_chars("a\nb\u00a0")[0]["line"] == 2
 assert names("s = '\u202e'\n") == ["RIGHT-TO-LEFT OVERRIDE"], "bidi control (Trojan Source)"
 assert names("d\u0430ta = 1\n") == ["CYRILLIC SMALL LETTER A in 'd\u0430ta'"], "Latin+Cyrillic look-alike word"
-# Not flagged: leading BOM, a Russian comment, accented letters, bytes replaced while decoding.
-for clean in ("\ufeffx = 1\n", "# \u043f\u0440\u0438\u0432\u0435\u0442 world\n", "x = '\u00e9\ufffd'\n"):
+assert names("x\u3164 = 1\n") == ["HANGUL FILLER"], "blank letter that passes as part of a name"
+assert names("x = 1  # " + "".join(chr(0xE0000 + ord(c)) for c in "hi")) == ["TAG CHARACTER x2"], "one flag per tag run"
+assert names("x = 1  # \ufe01\ufe02\ufe03\n") == ["VARIATION SELECTOR-2 x3"], "variation-selector run hides bytes"
+assert names("y\ufe0f = 1\n") == ["VARIATION SELECTOR-16"], "a selector on a letter selects nothing"
+# Not flagged: leading BOM, a Russian comment, accented letters, bytes replaced while decoding, an emoji's selector.
+for clean in ("\ufeffx = 1\n", "# \u043f\u0440\u0438\u0432\u0435\u0442 world\n", "x = '\u00e9\ufffd'\n",
+              "s = '\u26a0\ufe0f'\n"):
     assert hidden_chars(clean) == [], f"false flag on {clean!r}"
 with tempfile.TemporaryDirectory() as d:
     (Path(d) / "a.py").write_text(ORIG.replace("\n", "\u200b\n", 1), "utf-8")

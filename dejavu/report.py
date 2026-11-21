@@ -15,7 +15,7 @@ LIMIT = 500  # shortcut: the app lists the top 500 pairs; reviewers never get th
 def payload(r, limit=LIMIT, progress=_quiet):
     """progress(stage, done, total) reports stage "explain": evidence for top pairs, then per-file comment checks."""
     pairs = r["pairs"][:limit]
-    names = sorted({n for p in pairs for n in (p["a"], p["b"])} | set(r["flags"]))
+    names = sorted({n for p in pairs for n in (p["a"], p["b"])} | set(r["flags"]) | set(r["marks"]))
     idx = {n: i for i, n in enumerate(names)}
     ctx = context(r)
     steps, done = sum(1 for p in pairs if p["matches"]) + len(names), 0
@@ -35,7 +35,7 @@ def payload(r, limit=LIMIT, progress=_quiet):
     for n in names:
         lang = LANG[Path(n).suffix.lower()]
         files.append({"name": n, "lang": lang, "src": r["files"][n], "flags": r["flags"].get(n, []),
-                      "ai": ai_style(r["files"][n], lang)})
+                      "ai": ai_style(r["files"][n], lang), "marks": r["marks"].get(n, [])})
         done += 1
         progress("explain", done, steps)
     # stable id per batch, so review decisions saved in the browser come back for the same upload

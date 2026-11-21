@@ -276,6 +276,7 @@ const BANDS = [[0.4, "high", "Review first"], [0.2, "mid", "Worth a look"], [0, 
 const band = (s) => BANDS.find((b) => s >= b[0]);
 const pct = (x) => Math.round(x * 100) + "%";
 const aiOf = (f) => f.ai || []; // reports saved before AI-style flags existed have no "ai" field
+const wmOf = (f) => f.marks || []; // same for AI watermarks
 
 const main = $("#main");
 // ---------- theme (the attribute is already set in <head>; this keeps the button and storage in step) ----------
@@ -447,6 +448,7 @@ function renderList() {
       const p = P[i], b = band(p.score), s = status(p);
       const hz = F[p.a].flags.length || F[p.b].flags.length;
       const tags = (s !== "open" ? `<span class="tag ${s}">${s === "copy" ? "Likely copy" : "Not a copy"}</span>` : "")
+        + (wmOf(F[p.a]).length || wmOf(F[p.b]).length ? '<span class="tag hz">AI watermark</span>' : "")
         + (hz ? '<span class="tag hz">Hidden chars</span>' : "")
         + (aiOf(F[p.a]).length || aiOf(F[p.b]).length ? '<span class="tag ai">AI-style comments</span>' : "") + (dec[pk(p)] && dec[pk(p)].note ? '<span class="tag">Note</span>' : "");
       return `<li><button type="button" class="row" data-i="${i}" aria-current="${i === S.sel}">
@@ -473,6 +475,7 @@ function renderFiles(list) {
   list.innerHTML = rows.length ? rows.map((x) => {
     const f = F[x.fi], other = x.best ? F[x.best.a === x.fi ? x.best.b : x.best.a].name : "none";
     const tags = (x.copies ? `<span class="tag copy">${x.copies} likely ${x.copies > 1 ? "copies" : "copy"}</span>` : "")
+      + (wmOf(f).length ? '<span class="tag hz">AI watermark</span>' : "")
       + (f.flags.length ? '<span class="tag hz">Hidden chars</span>' : "")
       + (aiOf(f).length ? `<span class="tag ai">${aiOf(f).length} AI-style comment${aiOf(f).length > 1 ? "s" : ""}</span>` : "")
       + (x.n ? `<span class="tag">${x.n} pair${x.n > 1 ? "s" : ""} ≥ 0.20</span>` : "");
@@ -509,6 +512,8 @@ function renderDetail() {
   } else {
     facts += `<dt>Matching structure</dt><dd>Line-level detail is computed for the top 100 pairs only.</dd>`;
   }
+  const wm = [[A, "A"], [B, "B"]].filter(([f]) => wmOf(f).length);
+  if (wm.length) facts += `<dt>AI watermarks</dt><dd>${wm.flatMap(([f, s]) => wmOf(f).slice(0, 4).map((x) => `${s} line ${x.line}, ${esc(x.kind)}: <code>${esc(x.text)}</code>`)).join("<br>")}<br>Left in the file by a chat tool or code assistant. Strong hint, not proof: a student can paste such a line on purpose.</dd>`;
   const hz = [[A, "A"], [B, "B"]].filter(([f]) => f.flags.length);
   if (hz.length) facts += `<dt>Hidden characters</dt><dd>${hz.map(([f, s]) => `${s}: ${f.flags.length} on line${f.flags.length > 1 ? "s" : ""} ${[...new Set(f.flags.map((x) => x.line))].slice(0, 6).join(", ")}`).join("; ")}. Often left by text pasted from a chat tool. A hint, not proof.</dd>`;
   const ai = [[A, "A"], [B, "B"]].filter(([f]) => aiOf(f).length);
@@ -554,6 +559,7 @@ function paintCode(p) {
     const verb = new Set((p.verb || []).map((v) => v[vi]));
     const flag = {};
     f.flags.forEach((x) => { (flag[x.line] = flag[x.line] || []).push(`${x.char} ${x.name}`); });
+    wmOf(f).forEach((x) => { (flag[x.line] = flag[x.line] || []).push(`AI watermark, ${x.kind}: ${x.text}`); });
     const aiAt = {};
     aiOf(f).forEach((c) => { for (let n = c.a; n <= c.b; n++) aiAt[n] = "AI-style comment: " + c.reasons.join(", "); });
     $("#code" + s).innerHTML = lines.map((h, i) => {

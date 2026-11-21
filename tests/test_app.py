@@ -43,6 +43,8 @@ assert ("distance", "dist", 7) in data["pairs"][0]["ren"], data["pairs"][0]["ren
 # demo set: every AI rewrite has a flagged comment, no original or independent solution does
 for f in data["files"]:
     assert bool(f["ai"]) == ("ai_rewrite" in f["name"]), (f["name"], f["ai"])
+# demo set: the two planted AI watermarks reach the review screen, on no other file
+assert sorted(f["name"] for f in data["files"] if f["marks"]) == ["grid_bfs/ai_rewrite.java", "two_sum/ai_rewrite.py"]
 
 # render: submission text can't close the data <script> block
 evil = {"id": "x", "files": [{"name": "a.py", "lang": "python", "src": "</script><script>alert(1)</script>",

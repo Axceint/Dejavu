@@ -20,6 +20,8 @@ for p in r["pairs"][: args.top]:
     print(f'{p["score"]:.3f}  {p["a"]}  vs  {p["b"]}')
 for n, f in r["flags"].items():
     print(f'hidden chars  {n}: {len(f)} found, first on line {f[0]["line"]} ({f[0]["name"]})')
+for n, m in r["marks"].items():
+    print(f'AI watermark  {n}: line {m[0]["line"]} {m[0]["kind"]}: {m[0]["text"]!r}' + (f" (+{len(m) - 1} more)" if len(m) > 1 else ""))
 print(f'{len(r["files"])} files, {len(r["pairs"])} pairs with overlap, {r["seconds"]:.2f}s')
 if args.json:
     Path(args.json).write_text(json.dumps(r), encoding="utf-8")
