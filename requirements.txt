@@ -1,3 +1,5 @@
 tree-sitter
 tree-sitter-language-pack
 streamlit>=1.67
+httpx
+numpy
