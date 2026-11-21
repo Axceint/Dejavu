@@ -11,7 +11,7 @@ from pathlib import Path
 
 import streamlit as st
 
-from dejavu import ask
+from dejavu import ask, telemetry
 from dejavu.engine import scan
 from dejavu.report import payload, render, theme_toggle
 
@@ -204,6 +204,8 @@ def run(job, area):
     # every file goes to Ask AI (payload() keeps only the top pairs' files); a new scan drops the old index and chat
     st.session_state.update(data=data, csv=all_pairs_csv(r), label=job["name"], err=None,
                             files=r["files"], ask_index=None, ask_err=None, chat=[])
+    if zipped:  # the demo set would skew the thresholds
+        telemetry.send(r["files"], data["seconds"])
 
 
 def upload_form(key):
