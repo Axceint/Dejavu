@@ -64,7 +64,7 @@ html[data-dejavu-theme] :is([data-testid="stApp"], [data-testid="stPopoverBody"]
 html[data-dejavu-theme] [data-testid="stPopoverBody"] {border:1px solid var(--dj-line)}
 html[data-dejavu-theme] :is([data-testid="stMarkdownContainer"], [data-testid="stWidgetLabel"]) {color:var(--dj-text)}
 html[data-dejavu-theme] [data-testid="stMarkdownContainer"] code {background:var(--dj-sunk); color:var(--dj-muted)}
-html[data-dejavu-theme] [data-testid="stFileUploaderDropzone"] {background:var(--dj-sunk); color:var(--dj-text)}
+html[data-dejavu-theme] [data-testid="stFileUploaderDropzone"] {background:var(--dj-sunk); color:var(--dj-text); border-color:var(--dj-line)}
 html[data-dejavu-theme] [data-testid="stFileUploaderDropzoneInstructions"] * {color:var(--dj-muted)}
 html[data-dejavu-theme] :is([data-testid="stBaseButton-secondary"], [data-testid="stPopoverButton"]) {
   background:var(--dj-panel); border-color:var(--dj-line); color:var(--dj-text)}
@@ -80,7 +80,7 @@ html :is([data-testid="stBaseButton-primary"]:not(:disabled), .st-key-askai [dat
 html [data-testid="stBaseButton-primary"]:disabled {opacity:.55; cursor:not-allowed}
 
 /* Start page: the headline and the upload card */
-.st-key-intro [data-testid="stHeading"] h1 {font-size:2rem; line-height:1.15; padding:8px 0 12px}
+.st-key-intro [data-testid="stHeading"] h1 {font-size:2rem; line-height:1.15; padding:8px 0 12px; text-wrap:balance}  /* no lone last word */
 .st-key-intro [data-testid="stMarkdownContainer"] p {color:var(--dj-muted, inherit); font-size:1.0625rem}
 .st-key-upload {background:var(--dj-panel, transparent); border-color:var(--dj-line, rgba(128,128,128,.25)) !important}
 
@@ -92,7 +92,11 @@ html [data-testid="stBaseButton-primary"]:disabled {opacity:.55; cursor:not-allo
 @media (max-width:900px) {.st-key-how {position:static}}
 .st-key-demo {background:color-mix(in srgb, var(--dj-accent, #a0522d) 12%, transparent);
   border-color:var(--dj-accent, #a0522d) !important}
-.st-key-demo [data-testid="stMarkdownContainer"] p {font-size:.95rem}
+/* two body sizes: the lede at 1.0625rem, everything else at 1rem */
+.st-key-demo [data-testid="stMarkdownContainer"] p, .st-key-upload [data-testid="stWidgetLabel"] p,
+  .st-key-how [data-testid="stMarkdownContainer"] :is(p, li) {font-size:1rem}
+.st-key-how [data-testid="stHeading"] h3 {font-size:1.25rem; padding:10px 0 8px}  /* section labels, under the title */
+.st-key-how [data-testid="stCode"] pre code {font-size:13px}  /* the two-column example fits a 400px column */
 .st-key-demo > :has([data-testid="stMarkdown"]) {flex:1 1 0; min-width:0}  /* text and button on one row */
 .st-key-askai_body {width:min(420px, calc(100vw - 72px))}
 [data-testid="stPopoverBody"]:has(.st-key-askai_body) {box-shadow:0 12px 32px rgba(0,0,0,.22);
@@ -355,9 +359,14 @@ else:
                 "    for x in nums:             for v in values:\n"
                 "        s += x                     result += v\n"
                 "    return s                   return result", language="python")
-        st.markdown("Both become `def ID ( ID ) : ID = LIT LOOP ID in ID : ID += ID return ID`. Names, numbers "
-                    "and loop styles stop mattering. Short runs of these tokens are compared across every pair, "
-                    "and runs that few students share count most.")
+        st.markdown("Both become the same tokens:")
+        st.code("def ID ( ID ) : ID = LIT LOOP ID in ID : ID += ID return ID", language=None, wrap_lines=True)
+        st.markdown("Names, numbers and loop styles stop mattering. Short runs of these tokens are compared across "
+                    "every pair, and runs that few students share count most.")
+        st.subheader("What you get")
+        st.markdown("1. Pairs ranked by shared rare structure, highest first.\n"
+                    "2. Matching lines side by side, and why each pair ranks where it does.\n"
+                    "3. Decisions saved in your browser, plus an offline report and a CSV.")
 
 if job:
     run(job, area)
