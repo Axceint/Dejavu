@@ -15,24 +15,34 @@ DEMO = Path(__file__).parent / "tests" / "problems"
 
 st.set_page_config("Dejavu", layout="wide", initial_sidebar_state="collapsed")
 st.html("""<style>
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap");
 header[data-testid="stHeader"], footer {display:none}
+/* type: warm sans for text, serif for headings and the wordmark; code keeps its monospace */
+.stApp :is(p, li, label, button, input, small):not(pre *):not(code *) {font-family:"DM Sans", system-ui, sans-serif}
+[data-testid="stHeading"] :is(h1, h2, h3) {font-family:"Fraunces", Georgia, serif; font-weight:600; letter-spacing:-.01em}
+.st-key-brand strong {font-family:"Fraunces", Georgia, serif; font-size:22px; font-weight:600; letter-spacing:-.01em;
+  color:var(--dj-text, inherit)}
+.st-key-brand p {color:var(--dj-muted, inherit)}
+/* progress bars: thin and caramel, whatever the theme state */
+[data-testid="stProgressBarTrack"] {height:6px; border-radius:3px; background:var(--dj-sunk, rgba(128,128,128,.18))}
+[data-testid="stProgressBarTrack"] > div {border-radius:3px; background:var(--dj-accent, #a0522d)}
 .block-container {padding:12px 20px; max-width:none}
 /* The review screen fills the window under the top bar and the unzip/scan bars:
    12px pad + 40px top bar + 16px gap + 36px bars + 16px gap + 12px pad = 132px. */
 .st-key-phases:has([data-testid="stProgress"]) {min-height:36px}
 .st-key-review iframe {display:block; height:calc(100dvh - 132px) !important; min-height:520px;
-  border:1px solid var(--dj-line, rgba(128,128,128,.25)); border-radius:6px}
+  border:1px solid var(--dj-line, rgba(128,128,128,.25)); border-radius:10px}
 .st-key-review [data-testid="stElementContainer"] {flex:0 0 auto !important; height:auto !important}
 .st-key-theme iframe {display:block; border:0}
 
 /* Streamlit can't switch its own theme from code, so the theme toggles (review.html, toggle.html) set
    data-dejavu-theme on this page and these rules repaint it (same palette as review.html and config.toml). */
-html[data-dejavu-theme=light] {color-scheme:light; --dj-bg:#fafaf9; --dj-panel:#fff; --dj-sunk:#f3f3f1;
-  --dj-line:#cfcfca; --dj-text:#1b1b19; --dj-muted:#65655f; --dj-accent:#b45309; --dj-on-accent:#fff;
-  --dj-kw:#1d4f91; --dj-str:#1f6f43; --dj-com:#8b8b84; --dj-num:#9a4a12}
-html[data-dejavu-theme=dark] {color-scheme:dark; --dj-bg:#141413; --dj-panel:#1b1b1a; --dj-sunk:#222220;
-  --dj-line:#3d3d39; --dj-text:#ecece8; --dj-muted:#a3a39b; --dj-accent:#f0a33a; --dj-on-accent:#141413;
-  --dj-kw:#8ab4f8; --dj-str:#8fd19e; --dj-com:#7c7c75; --dj-num:#f2a96b}
+html[data-dejavu-theme=light] {color-scheme:light; --dj-bg:#f6f1e9; --dj-panel:#fffcf7; --dj-sunk:#efe7db;
+  --dj-line:#d6c8b4; --dj-text:#2a1f17; --dj-muted:#6f5f4f; --dj-accent:#a0522d; --dj-on-accent:#fffcf7;
+  --dj-kw:#8a4b1f; --dj-str:#4f6b2f; --dj-com:#9c8b78; --dj-num:#b0621e}
+html[data-dejavu-theme=dark] {color-scheme:dark; --dj-bg:#1b1612; --dj-panel:#231c17; --dj-sunk:#2c241e;
+  --dj-line:#4a3d33; --dj-text:#f3e9dc; --dj-muted:#c2b09c; --dj-accent:#e0a36a; --dj-on-accent:#1b1612;
+  --dj-kw:#e7b07a; --dj-str:#b9d08a; --dj-com:#8f7d6a; --dj-num:#f0b27a}
 html[data-dejavu-theme] [data-testid="stHeading"] :is(h1, h2, h3) {color:var(--dj-text)}
 html[data-dejavu-theme] [data-testid="stCaptionContainer"] {color:var(--dj-muted)}
 html[data-dejavu-theme] [data-testid="stCode"] pre {background:var(--dj-sunk); color:var(--dj-text)}
@@ -44,8 +54,6 @@ html[data-dejavu-theme] [data-testid="stCode"] .token.function {color:var(--dj-t
 html[data-dejavu-theme] [data-testid="stCode"] :is(.token.operator, .token.punctuation) {color:var(--dj-muted)}
 html[data-dejavu-theme] [data-testid="stBaseButton-primary"] {background:var(--dj-accent); border-color:var(--dj-accent);
   color:var(--dj-on-accent)}
-html[data-dejavu-theme] [data-testid="stProgressBarTrack"] {background:var(--dj-sunk)}
-html[data-dejavu-theme] [data-testid="stProgressBarTrack"] > div {background:var(--dj-accent)}
 html[data-dejavu-theme] [data-testid="stBaseButton-primary"]:disabled {background:transparent; border-color:var(--dj-line);
   color:var(--dj-muted)}
 html[data-dejavu-theme] :is([data-testid="stApp"], [data-testid="stPopoverBody"]) {
@@ -142,7 +150,7 @@ data = st.session_state.get("data")
 html = render(data, st.context.theme.type) if data else None
 bar = st.columns([5, 1.2, 1.2, 1.4, 1.2], vertical_alignment="center")
 label = st.session_state.get("label", "").replace("`", "'")  # upload name is untrusted: keep it inline code
-bar[0].markdown("**Dejavu** · code similarity review" + (f" · `{label}`" if html else ""))
+bar[0].container(key="brand").markdown("**Dejavu** · code similarity review" + (f" · `{label}`" if html else ""))
 if html:
     with bar[1].popover("New scan", width="stretch"):
         job = upload_form("bar")
