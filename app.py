@@ -1,6 +1,8 @@
 """Streamlit host: takes the upload, runs scan(), and embeds the review app from dejavu/review.html."""
 import csv
 import io
+import re
+import os
 import tempfile
 import time
 import zipfile
@@ -43,11 +45,11 @@ html[data-dejavu-max] .st-key-review iframe {height:calc(100dvh - 24px) !importa
 /* Streamlit can't switch its own theme from code, so the theme toggles (review.html, toggle.html) set
    data-dejavu-theme on this page and these rules repaint it (same palette as review.html and config.toml). */
 html {color-scheme:light; --dj-bg:#f6f1e9; --dj-panel:#fffcf7; --dj-sunk:#efe7db;
-  --dj-line:#d6c8b4; --dj-text:#2a1f17; --dj-muted:#6f5f4f; --dj-accent:#a0522d; --dj-on-accent:#fffcf7;
-  --dj-kw:#8a4b1f; --dj-str:#4f6b2f; --dj-com:#9c8b78; --dj-num:#b0621e}
+  --dj-line:#d6c8b4; --dj-text:#2a1f17; --dj-muted:#6f5f4f; --dj-accent:#a0522d; --dj-on-accent:#fffcf7; --dj-accent-ink:#a0522d;
+  --dj-kw:#8a4b1f; --dj-str:#4f6b2f; --dj-com:#9c8b78; --dj-num:#b0621e; --dj-ok:#3f6b3a; --dj-bad:#a8322a}
 html[data-dejavu-theme=dark] {color-scheme:dark; --dj-bg:#1b1612; --dj-panel:#231c17; --dj-sunk:#2c241e;
-  --dj-line:#4a3d33; --dj-text:#f3e9dc; --dj-muted:#c2b09c; --dj-accent:#e0a36a; --dj-on-accent:#1b1612;
-  --dj-kw:#e7b07a; --dj-str:#b9d08a; --dj-com:#8f7d6a; --dj-num:#f0b27a}
+  --dj-line:#4a3d33; --dj-text:#f3e9dc; --dj-muted:#c2b09c; --dj-accent:#e0a36a; --dj-on-accent:#1b1612; --dj-accent-ink:#e0a36a;
+  --dj-kw:#e7b07a; --dj-str:#b9d08a; --dj-com:#8f7d6a; --dj-num:#f0b27a; --dj-ok:#a7cf8f; --dj-bad:#f19a8f}
 html[data-dejavu-theme] [data-testid="stHeading"] :is(h1, h2, h3) {color:var(--dj-text)}
 html[data-dejavu-theme] [data-testid="stCaptionContainer"] {color:var(--dj-muted)}
 html[data-dejavu-theme] [data-testid="stCode"] pre {background:var(--dj-sunk); color:var(--dj-text)}
@@ -78,7 +80,7 @@ html :is([data-testid="stBaseButton-primary"]:not(:disabled), .st-key-askai [dat
 html [data-testid="stBaseButton-primary"]:disabled {opacity:.55; cursor:not-allowed}
 
 /* Start page: the headline and the upload card */
-.st-key-intro [data-testid="stHeading"] h1 {font-size:2rem; line-height:1.15; padding:8px 0 0}
+.st-key-intro [data-testid="stHeading"] h1 {font-size:2rem; line-height:1.15; padding:8px 0 12px}
 .st-key-intro [data-testid="stMarkdownContainer"] p {color:var(--dj-muted, inherit); font-size:1.0625rem}
 .st-key-upload {background:var(--dj-panel, transparent); border-color:var(--dj-line, rgba(128,128,128,.25)) !important}
 
@@ -91,20 +93,44 @@ html [data-testid="stBaseButton-primary"]:disabled {opacity:.55; cursor:not-allo
 .st-key-demo {background:color-mix(in srgb, var(--dj-accent, #a0522d) 12%, transparent);
   border-color:var(--dj-accent, #a0522d) !important}
 .st-key-demo [data-testid="stMarkdownContainer"] p {font-size:.95rem}
+.st-key-demo > :has([data-testid="stMarkdown"]) {flex:1 1 0; min-width:0}  /* text and button on one row */
 .st-key-askai_body {width:min(420px, calc(100vw - 72px))}
 [data-testid="stPopoverBody"]:has(.st-key-askai_body) {box-shadow:0 12px 32px rgba(0,0,0,.22);
-  animation:dj-fade .12s ease-out}
-@keyframes dj-fade {from {opacity:0} to {opacity:1}}
+  animation:dj-fade .2s ease-out}
+@keyframes dj-fade {0%, 40% {opacity:0} to {opacity:1}}  /* hidden while the popover is still being positioned */
 @media (prefers-reduced-motion: reduce) {[data-testid="stPopoverBody"]:has(.st-key-askai_body) {animation:none}}
+/* AI status chip, in the middle of the top bar: off (grey), ready (green), error (red), indexing (red, pulsing) */
+/* centred in the free space between the name and the buttons */
+.st-key-topbar > :has([class*="st-key-aichip"], .dj-ai-busy) {flex:0 0 auto; width:fit-content; margin:0 auto}
+.st-key-topbar:has([class*="st-key-aichip"], .dj-ai-busy) > :has(.st-key-brand) {flex:0 1 auto; width:auto; min-width:0}
+/* one row at any desktop width: the name gives way (ellipsis) before the buttons wrap */
+.st-key-topbar:has(.st-key-askai, [class*="st-key-aichip"]) {flex-wrap:nowrap}
+.st-key-topbar > :has(.st-key-brand) {min-width:0}
+.st-key-brand {min-width:0; overflow:hidden}
+.st-key-brand p {white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.st-key-brand code {white-space:nowrap}
+[class*="st-key-aichip"] [data-testid="stPopoverButton"] {border-radius:999px; padding:2px 12px; min-height:0; font-size:.85rem}
+html[data-dejavu-theme] [data-testid="stTextInput"] :is([data-baseweb="base-input"], input, button) {background:var(--dj-sunk); color:var(--dj-text)}
+.st-key-aichip_off [data-testid="stPopoverButton"] {border-style:dashed; color:var(--dj-muted, inherit)}
+.st-key-aichip_ready [data-testid="stIconMaterial"] {color:var(--dj-ok, #3f6b3a)}
+.st-key-aichip_error :is([data-testid="stIconMaterial"], [data-testid="stMarkdownContainer"] p) {color:var(--dj-bad, #a8322a)}
+.dj-ai-busy {display:inline-flex; align-items:center; gap:8px; padding:4px 12px; border-radius:999px; white-space:nowrap;
+  font-size:.85rem; font-weight:600; color:var(--dj-bad, #a8322a); border:1px solid currentColor;
+  background:color-mix(in srgb, var(--dj-bad, #a8322a) 10%, transparent)}
+.dj-ai-busy i {width:8px; height:8px; border-radius:50%; background:currentColor; animation:dj-pulse 1s ease-in-out infinite}
+@keyframes dj-pulse {50% {opacity:.25}}
+@media (prefers-reduced-motion: reduce) {.dj-ai-busy i {animation:none}}
 /* citation numbers: small accent badges, so they stand apart from the file name */
 .dj-cite {display:inline-flex; align-items:center; gap:8px; max-width:100%; margin:2px 0; padding:4px 10px;
   font:inherit; font-size:.85rem; text-align:left; cursor:pointer; color:var(--dj-text, inherit);
   background:var(--dj-sunk, rgba(128,128,128,.12)); border:1px solid var(--dj-line, rgba(128,128,128,.35)); border-radius:8px}
-.dj-cite:hover {border-color:var(--dj-accent, #a0522d)}
+.dj-cite:hover {border-color:var(--dj-accent-ink, #a0522d)}
 .dj-cite .n {flex:none; min-width:1.4em; padding:0 5px; border-radius:6px; font-size:.75rem; font-weight:700;
   text-align:center; color:var(--dj-on-accent, #fff); background:var(--dj-accent, #a0522d)}
+.st-key-askai_body .stMarkdownBadge {background:var(--dj-accent, #a0522d) !important; color:var(--dj-on-accent, #fff) !important;
+  font-size:.75rem !important; font-weight:700; padding:0 6px; border-radius:6px; vertical-align:1px}  /* same as the chip numbers */
 .dj-cite code {overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:.8rem}
-.dj-cite .go {flex:none; color:var(--dj-accent, #a0522d); font-weight:600}
+.dj-cite .go {flex:none; color:var(--dj-accent-ink, #a0522d); font-weight:600}
 html[data-dejavu-theme] .st-key-askai_body [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) {
   background:var(--dj-sunk)}
 html[data-dejavu-theme] .st-key-askai_body [data-testid="stChatInput"] > div {background:var(--dj-sunk);
@@ -173,7 +199,7 @@ def run(job, area):
         return
     # every file goes to Ask AI (payload() keeps only the top pairs' files); a new scan drops the old index and chat
     st.session_state.update(data=data, csv=all_pairs_csv(r), label=job["name"], err=None,
-                            files=r["files"], ask_index=None, chat=[])
+                            files=r["files"], ask_index=None, ask_err=None, chat=[])
 
 
 def upload_form(key):
@@ -191,9 +217,13 @@ def code_label(s):
     return "`" + s.replace("`", "'") + "`"  # file names are untrusted: keep them inline code
 
 
+GLUED_MARKER = re.compile(r"\s*" + ask.MARKER.pattern)  # the marker and the space before it
+
+
 @st.fragment
 def ask_ai():
     """Read-only questions about the batch. Reruns only itself, so the review screen keeps its place."""
+    ask.use_key(st.session_state.get("llm_key", ""))  # a fragment rerun skips the top of the script
     if not st.session_state.get("files") or not ask.available():
         return  # no scan, no key or no internet: no box
     in_review = {f["name"] for f in st.session_state.data["files"]}  # payload() keeps only the top pairs' files
@@ -215,7 +245,7 @@ def ask_ai():
                     if "error" in turn:
                         st.error(turn["error"])
                         continue
-                    st.markdown(ask.MARKER.sub(lambda m: f":orange-badge[{m[1]}]", turn["answer"]))
+                    st.markdown(GLUED_MARKER.sub(lambda m: f"\u00a0:orange-badge[{m[1]}]", turn["answer"]))  # nbsp: a badge never starts a line
                     for c in turn["citations"]:
                         lines = f"lines {c['start']}–{c['end']}"
                         if c["file"] in in_review:  # click to open the file in the review screen
@@ -239,7 +269,37 @@ def ask_ai():
             st.rerun(scope="fragment")
 
 
-job = None
+def ai_chip(slot):
+    """AI status in the middle of the top bar. Its menu holds the key box, or the index details and a rebuild.
+    Returns True when the index still has to be built (after the page is drawn, with progress in `slot`)."""
+    if not ask.available():
+        has_key = bool(ask.key())
+        with slot.container(key="aichip_off"), st.popover("AI offline" if has_key else "AI off", icon=":material/cloud_off:"):
+            st.caption("Couldn't reach the model, or it rejected the key." if has_key else "Ask AI needs a Gemini API key.")
+            if not os.getenv("LLM_API_KEY"):  # a server secret can't be replaced from the page
+                with st.form("aikey", border=False):
+                    k = st.text_input("API key", type="password", help="Kept in memory for this browser tab only. Never saved.")
+                    if st.form_submit_button("Use key", type="primary") and k.strip():
+                        st.session_state.update(llm_key=k.strip(), ask_index=None, ask_err=None)
+                        st.rerun()
+        return False
+    idx, err = st.session_state.get("ask_index"), st.session_state.get("ask_err")
+    if idx is None and not err:
+        return True
+    with slot.container(key="aichip_error" if err else "aichip_ready"),             st.popover("AI error" if err else "AI ready", icon=":material/error:" if err else ":material/check_circle:"):
+        if err:
+            st.error(err)
+        else:
+            st.caption(f"Ask AI searches **{len(idx['chunks']):,}** chunks (one per function) from "
+                       f"**{len({c['file'] for c in idx['chunks']}):,}** files of this scan.")
+        if st.button("Rebuild index", icon=":material/refresh:"):
+            st.session_state.update(ask_index=None, ask_err=None)
+            st.rerun()
+    return False
+
+
+job = need_index = None
+ask.use_key(st.session_state.get("llm_key", ""))
 data = st.session_state.get("data")
 # light is the default look; a theme the reviewer picked with the toggle (saved in the browser) still wins
 html = render(data, "light") if data else None
@@ -248,8 +308,8 @@ bar = st.container(key="topbar", horizontal=True, vertical_alignment="center")
 label = code_label(st.session_state.get("label", ""))  # upload name is untrusted
 bar.container(key="brand").markdown("**Dejavu** · code similarity review" + (f" · {label}" if html else ""))
 if html:
-    with bar:
-        ask_ai()
+    ai_slot = bar.empty()
+    need_index = ai_chip(ai_slot)
     with bar.popover("New scan"):
         job = upload_form("bar")
     if bar.button("Demo set"):
@@ -257,6 +317,8 @@ if html:
     bar.download_button("Offline report", html, "dejavu-report.html", "text/html",
                         help="The same review screen as one HTML file. Opens without a server.")
     bar.download_button("All pairs CSV", st.session_state.csv, "dejavu-pairs.csv", "text/csv")
+    with bar:
+        ask_ai()
 else:
     # the review screen has its own toggle; this one covers the landing page
     with bar.container(key="theme", width="content"):
@@ -299,4 +361,14 @@ else:
 
 if job:
     run(job, area)
+    st.rerun()
+
+if need_index:  # after the page is drawn, so the review is usable while the index builds
+    def busy(text):
+        ai_slot.html(f'<div class="dj-ai-busy" role="status"><i></i>{text}</div>')
+    busy("Chunking the code…")
+    try:
+        st.session_state.ask_index = ask.build(st.session_state.files, lambda d, n: busy(f"Indexing {d:,} / {n:,} chunks"))
+    except ask.Unavailable as e:
+        st.session_state.ask_err = str(e)
     st.rerun()
