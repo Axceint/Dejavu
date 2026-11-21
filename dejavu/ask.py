@@ -1,6 +1,7 @@
 """Ask the batch: answers a reviewer's question about one scan's code, citing file:line. Read-only: it never
 marks, ranks or decides anything. Retrieval is ported from the team03-65 RAG project: BM25 keyword scores and
 vector similarity fused by reciprocal rank, numbered sources, and [n] markers checked against those sources."""
+import contextvars
 import math
 import os
 import re
@@ -37,24 +38,35 @@ class Unavailable(RuntimeError):
     """No key, no network, or the provider's quota ran out. The message is shown to the reviewer."""
 
 
+_session_key = contextvars.ContextVar("llm_key", default="")
+
+
+def use_key(k):
+    """A key the reviewer pasted in the app: kept per browser session in memory, never in the environment,
+    so other users of the same server don't share it. The LLM_API_KEY secret wins when it is set."""
+    _session_key.set(k)
+
+
 def key():
-    return os.getenv("LLM_API_KEY", "")
+    return os.getenv("LLM_API_KEY", "") or _session_key.get()
 
 
-_seen = {"at": -60.0, "ok": False}
+_seen = {}  # key -> (checked at, ok)
 
 
 def available():
-    """True when a key is set and the provider answers. Cached for a minute, so the panel can poll it."""
-    if not key():
+    """True when a key is set and the provider answers. Cached for a minute per key, so the panel can poll it."""
+    k = key()
+    if not k:
         return False
-    if time.monotonic() - _seen["at"] > 60:
+    at, ok = _seen.get(k, (-60.0, False))
+    if time.monotonic() - at > 60:
         try:
-            ok = httpx.get(BASE + "models", headers={"Authorization": f"Bearer {key()}"}, timeout=3).status_code == 200
+            ok = httpx.get(BASE + "models", headers={"Authorization": f"Bearer {k}"}, timeout=3).status_code == 200
         except httpx.HTTPError:
             ok = False
-        _seen.update(at=time.monotonic(), ok=ok)
-    return _seen["ok"]
+        _seen[k] = (time.monotonic(), ok)
+    return ok
 
 
 def _retry_delay(message):
