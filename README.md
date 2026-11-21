@@ -35,7 +35,7 @@ submissions (folder or .zip)
   → parse each file into a syntax tree (tree-sitter, all 3 languages)
   → normalize: names → ID, literals → LIT, comments/qualifiers/braces dropped,
                for/while loops and self-recursive calls → LOOP, ++x/x++ → UPD
-  → fingerprint: hash every run of 5 normalized tokens
+  → fingerprint: hash every run of 6 normalized tokens
   → score each same-language pair by shared fingerprints, weighted by rarity
   → ranked pairs + the matching line ranges for a side-by-side view
 ```
@@ -62,18 +62,18 @@ From the repo's own tests (`tests/`). The test files were written by hand, the "
 
 | Rewrite | Python | C++ | Java |
 |---|---|---|---|
-| Renamed + reordered functions + comments | 0.754 | 0.678 | 0.896 |
-| Loop → recursion | 0.550 | | |
-| AI-style rewrite | 0.244 | 0.399 | 0.555 |
-| *Independent solution, same task (should be low)* | *0.031* | *0.234* | *0.216* |
+| Renamed + reordered functions + comments | 0.788 | 0.617 | 0.866 |
+| Loop → recursion | 0.502 | | |
+| AI-style rewrite | 0.223 | 0.323 | 0.479 |
+| *Independent solution, same task (should be low)* | *0.013* | *0.182* | *0.150* |
 
 **Ranking across problems** (two_sum + grid_bfs scanned together): in every language, each AI rewrite ranks above **every** false pair (independent solutions and cross-problem pairs).
 
 | Language | AI rewrite scores | Highest false pair |
 |---|---|---|
-| Python | 0.233 – 0.470 | 0.173 |
-| C++ | 0.254 – 0.402 | 0.179 |
-| Java | 0.486 – 0.643 | 0.202 |
+| Python | 0.237 – 0.433 | 0.108 |
+| C++ | 0.222 – 0.358 | 0.124 |
+| Java | 0.426 – 0.596 | 0.175 |
 
 **Speed:** 300 files (worst case, nearly every pair overlapping) in about 1–2 s. The limit is 2 minutes.
 
@@ -92,7 +92,7 @@ Code copied out of a chat window or a web page sometimes carries characters you 
 Dejavu does two things with them:
 
 1. **Flags them.** Each affected file is listed with the line and character, under `flags` in the result and as a `hidden chars` line in the CLI. This is a **hint, not proof** of AI use or copying.
-2. **Removes them before comparing.** A single zero-width space after `def` broke parsing of a whole function and dropped a copy's score from 1.0 to 0.89 in our test, so hidden characters can't be used to hide a copy.
+2. **Removes them before comparing.** A single zero-width space at the end of a `def` line broke parsing of a whole function and dropped a copy's score from 1.0 to 0.87 in our test, so hidden characters can't be used to hide a copy.
 
 Not flagged: a byte-order mark at the start of a file (normal on Windows), comments written in another script (e.g. Russian), accented letters, and the one variation selector an emoji uses to pick its style.
 
@@ -121,7 +121,7 @@ py -3.12 -m venv .venv
 
 Input is a folder or a `.zip`. Language comes from the extension: `.py`, `.java`, `.cpp .cc .cxx .h .hpp`.
 
-**Starter code:** if every student got the same template, pass it with `--base starter.py` (a file, folder or `.zip`). Any code found in it is ignored. In our test, two independent solutions sharing a template scored 0.488 without `--base` and 0.011 with it.
+**Starter code:** if every student got the same template, pass it with `--base starter.py` (a file, folder or `.zip`). Any code found in it is ignored. In our test, two independent solutions sharing a template scored 0.475 without `--base` and 0.005 with it.
 
 From Python:
 
@@ -138,13 +138,17 @@ result = scan("submissions.zip", base="starter.py")  # base is optional
 
 ## Tests and CI
 
-Every pull request and every push to `main` runs all four checks in GitHub Actions:
+Every pull request and every push to `main` runs these checks in GitHub Actions:
 
 ```powershell
 .venv\Scripts\python -m tests.test_engine      # renames, reorder, loop->recursion, AI rewrite vs independent
 .venv\Scripts\python -m tests.test_edge_cases  # odd inputs never crash or create false positives
 .venv\Scripts\python -m tests.test_problems    # true pairs outrank all false pairs across problems
-.venv\Scripts\python -m tests.bench            # 300 files under 2 minutes
+.venv\Scripts\python -m tests.bench            # 300 files under 2 minutes, exactly the 12 watermarked ones flagged
+.venv\Scripts\python -m tests.test_app         # review UI smoke test
+.venv\Scripts\python -m tests.test_margin      # weakest true copy vs strongest false pair, per language
+.venv\Scripts\python -m tests.test_ask         # Ask AI with a fake model (no key or network)
+.venv\Scripts\python -m tests.test_watermark   # every AI watermark kind found, look-alikes not flagged, demo marks
 ```
 
 Work is tracked in GitHub issues on a [project board](https://github.com/users/itzhimanshugt/projects/4). Each change is merged by PR only after CI passes.
