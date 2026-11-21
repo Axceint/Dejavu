@@ -65,8 +65,7 @@ next(x for x in at.button if x.label == "Try the demo set").click().run()
 assert not at.exception, at.exception
 iframe = at.get("iframe")[0].proto
 assert "const DATA = {" in iframe.srcdoc and "grid_bfs/ai_rewrite.java" in iframe.srcdoc
-# the finished unzip/read and scan bars stay on the results page
-bars = [(b.proto.value, b.proto.text) for b in at.get("progress")]
-assert len(bars) == 2 and all(v == 100 for v, _ in bars), bars
-assert bars[0][1].startswith("Read **18** files") and bars[1][1].startswith("Scanned · **45** pairs share code"), bars
+# the unzip/read and scan bars only exist while scanning
+assert not at.get("progress"), [b.proto.text for b in at.get("progress")]
+assert 'id="sideBtn"' in iframe.srcdoc and 'id="maxBtn"' in iframe.srcdoc
 print("APP PASS")
