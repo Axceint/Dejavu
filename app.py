@@ -237,7 +237,7 @@ def ask_ai():
         st.html("""<script>if (!window.djCite) { window.djCite = 1; document.addEventListener("click", (e) => {
   const b = e.target.closest(".dj-cite"), f = document.querySelector(".st-key-review iframe");
   if (!b || !f) return;
-  f.contentWindow.postMessage({type: "dejavu:open", file: b.dataset.file, line: +b.dataset.line}, "*");
+  f.contentWindow.postMessage({type: "dejavu:open", file: b.dataset.file, line: +b.dataset.line, end: +b.dataset.end}, "*");
   document.querySelector(".st-key-askai button").click();
 }); }</script>""", unsafe_allow_javascript=True)
         st.caption("Answers come only from this batch's code and cite file and line. It can't mark or rank pairs.")
@@ -254,7 +254,7 @@ def ask_ai():
                         lines = f"lines {c['start']}–{c['end']}"
                         if c["file"] in in_review:  # click to open the file in the review screen
                             st.html(f'<button type="button" class="dj-cite" data-file="{escape(c["file"])}" '
-                                    f'data-line="{c["start"]}"><span class="n">{c["n"]}</span>'
+                                    f'data-line="{c["start"]}" data-end="{c["end"]}"><span class="n">{c["n"]}</span>'
                                     f'<code>{escape(c["file"])}</code>{lines}<span class="go">Open ↗</span></button>')
                             continue
                         with st.popover(f":orange-badge[{c['n']}] {code_label(c['file'])} {lines}"):  # not in the review: show the lines here
