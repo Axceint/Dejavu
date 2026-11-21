@@ -6,10 +6,13 @@ import uuid
 import zipfile
 from collections import OrderedDict
 from pathlib import Path
+from typing import Annotated
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import HTMLResponse, Response
+from pydantic import BaseModel, StringConstraints
 
+from . import ask
 from .engine import LANG, scan
 from .report import all_pairs_csv, payload, render
 
@@ -31,6 +34,7 @@ def _run(job, path, base, tmp):
         r = scan(path, base, tick)
         job["data"] = payload(r, progress=tick)
         job["csv"] = all_pairs_csv(r)
+        job["files"] = r["files"]  # every file, for Ask the batch; payload() keeps only files in the top pairs
         job["state"] = "done"
     except (FileNotFoundError, ValueError, zipfile.BadZipFile) as e:
         job.update(state="error", error=f"Couldn't scan {job['name']}: {e}")
@@ -98,7 +102,10 @@ def _job(job_id, done=False):
 def status(job_id: str):
     """Poll this until state is "done" or "error"."""
     job = _job(job_id)
-    return {k: job[k] for k in ("state", "name", "stage", "done", "total", "error") if k in job}
+    out = {k: job[k] for k in ("state", "name", "stage", "done", "total", "error") if k in job}
+    if "ask" in job:
+        out["ask"] = _ask_status(job)
+    return out
 
 
 @app.get("/api/scans/{job_id}/result")
@@ -117,3 +124,55 @@ def report(job_id: str, theme: str | None = None):
     """The review screen as one file that opens without a server. render() whitelists theme."""
     return HTMLResponse(render(_job(job_id, done=True)["data"], theme),
                         headers={"Content-Disposition": 'attachment; filename="dejavu-report.html"'})
+
+
+# Ask the batch: read-only questions about the code. The index lives on the job, so it goes when the scan does.
+def _ask_status(job):
+    return {k: v for k, v in job["ask"].items() if k != "index"}
+
+
+def _index(job):
+    a = job["ask"]
+    try:
+        a["index"] = ask.build(job["files"], lambda done, total: a.update(done=done, total=total))
+        a["state"] = "done"
+    except ask.Unavailable as e:
+        a.update(state="error", error=str(e))
+    except Exception:
+        a.update(state="error", error="Indexing failed unexpectedly. Try again, or check the server log.")
+        raise
+
+
+@app.get("/api/ask/available")
+def ask_available():
+    """The Ask panel shows only when this is true: an API key is set and the model answers."""
+    return {"available": ask.available()}
+
+
+@app.post("/api/scans/{job_id}/index", status_code=202)
+def ask_index(job_id: str):
+    """Build the Ask index in the background; poll GET /api/scans/{id} until its "ask" state is "done"."""
+    job = _job(job_id, done=True)
+    if not ask.key():
+        raise HTTPException(503, "Ask the batch needs an API key on the server.")
+    with lock:
+        if job.get("ask", {}).get("state") not in ("running", "done"):  # first call, or retry after an error
+            job["ask"] = {"state": "running", "done": 0, "total": 0}
+            threading.Thread(target=_index, args=(job,), daemon=True).start()
+    return _ask_status(job)
+
+
+class Question(BaseModel):
+    question: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)]
+
+
+@app.post("/api/scans/{job_id}/ask")
+def ask_question(job_id: str, q: Question):
+    """Answer with file:line citations. One model call per question; it never changes the scan."""
+    a = _job(job_id, done=True).get("ask", {})
+    if a.get("state") != "done":
+        raise HTTPException(409, "Build the index first: POST /api/scans/{id}/index.")
+    try:
+        return ask.answer(a["index"], q.question)
+    except ask.Unavailable as e:
+        raise HTTPException(503, str(e))
