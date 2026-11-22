@@ -46,6 +46,13 @@ html[data-dejavu-max] .st-key-review iframe {height:calc(100dvh - 24px) !importa
 html:not([data-dejavu-max]):has(.st-key-phases [data-testid="stProgress"]) .st-key-review iframe {height:calc(100dvh - 128px) !important}
 .st-key-review [data-testid="stElementContainer"] {flex:0 0 auto !important; height:auto !important}
 .st-key-theme iframe {display:block; border:0}
+/* Open menus (z 1000060) and the review's Help / Colours (data-dejavu-dim) dim the rest of the page; a click on the dim
+   closes them. Ask AI stays undimmed: its answers point at code in the review. */
+html:has([data-testid="stPopoverBody"]):not(:has(.st-key-askai_body)) body::after, html[data-dejavu-dim] body::after {
+  content:""; position:fixed; inset:0; z-index:1000050; background:rgba(0,0,0,.25); animation:dj-dim .15s ease-out}
+html[data-dejavu-dim] .st-key-review iframe {position:relative; z-index:1000051}  /* the review dims its own inside */
+@keyframes dj-dim {from {opacity:0}}
+@media (prefers-reduced-motion: reduce) {body::after {animation:none}}
 
 /* Streamlit can't switch its own theme from code, so the theme toggles (review.html, toggle.html) set
    data-dejavu-theme on this page and these rules repaint it (same palette as review.html and config.toml). */

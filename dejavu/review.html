@@ -110,7 +110,7 @@ kbd{font:11px/1 var(--mono);padding:2px 4px;border:1px solid var(--line2);border
 .filters option:is(:hover,:focus-visible){background:var(--sunk)}
 .filters select::picker-icon{transition:rotate var(--fast)}
 .filters select:open::picker-icon{rotate:180deg}
-@media (prefers-reduced-motion:reduce){.spin svg{animation:none}.pop,dialog,dialog::backdrop,.why::details-content,.seg::after{transition:none}}
+@media (prefers-reduced-motion:reduce){.spin svg,body::after{animation:none}.pop,dialog,dialog::backdrop,.code,.ln,.why::details-content,.seg::after{transition:none}}
 @media (prefers-reduced-motion:reduce){.filters select::picker(select),.filters select::picker-icon{transition:none}}
 
 .side{display:flex;flex-direction:column;min-height:0;overflow:hidden;transition:visibility var(--fast);border-right:1px solid var(--line);background:var(--panel)}
@@ -187,6 +187,9 @@ button.chip:hover{border-color:var(--text)}
 .ln.m{background:var(--match)}
 .ln.v{background:var(--verb)}
 .ln.f{background:var(--hot);box-shadow:inset 3px 0 0 var(--hot-bar)}  /* light tint keeps code readable; the bar marks the focus */
+/* Focus: hovering a highlighted fragment shades the rest of the code like the popup dim (the Focus toggle turns it off) */
+@media (hover:hover){.panes.spot .code{background:rgba(0,0,0,.25)}.panes.spot .ln.f{background:linear-gradient(var(--hot),var(--hot)) var(--panel)}}
+.code,.ln{transition:background-color var(--fast) ease-out}
 /* lines an Ask AI citation points at: the block and the names it's about pulse together twice, then fade out */
 .ln.cite{--hl:var(--cite);animation:cite 3s ease-in-out forwards}
 .ln.cite mark.kw{--hl:var(--cite-kw);color:inherit;border-radius:3px;animation:cite 3s ease-in-out forwards}
@@ -222,6 +225,9 @@ button.chip:hover{border-color:var(--text)}
 
 dialog{border:1px solid var(--line2);border-radius:6px;background:var(--panel);color:var(--text);padding:16px 20px;max-width:420px}
 dialog::backdrop{background:rgba(0,0,0,.25)}
+/* Colours dims the page like the help dialog; a click on the dim closes it (the mousedown handler) */
+body:has(#colors:not([hidden]))::after{content:"";position:fixed;inset:0;z-index:19;background:rgba(0,0,0,.25);animation:dim var(--fast) ease-out}
+@keyframes dim{from{opacity:0}}
 dialog h2{font:600 16px var(--serif);margin:0 0 10px}  /* same as the Colours title */
 dialog table{border-collapse:collapse;width:100%}
 dialog td{padding:4px 0;border-bottom:1px solid var(--line)}
@@ -426,6 +432,16 @@ function setMax(on) {
   try { if (window.parent !== window) { const h = window.parent.document.documentElement; if (on) h.dataset.dejavuMax = ""; else delete h.dataset.dejavuMax; } } catch (e) { /* other origin: only this page maximises */ }
 }
 setMax(false); // a rerun of the host reloads this page: start normal
+// Help and Colours dim the host page too (see app.py); a click there closes them
+function hostDim() {  // from the real state, so a late close event can't undo a newer open
+  const on = $("#help").open || !$("#colors").hidden;
+  try { if (window.parent !== window) { const h = window.parent.document.documentElement; if (on) h.dataset.dejavuDim = ""; else delete h.dataset.dejavuDim; } } catch (e) { /* other origin: only this page dims */ }
+}
+hostDim();
+try {
+  const closePops = () => { if ($("#help").open) $("#help").close(); if (!$("#colors").hidden) closeColors(); };
+  if (window.parent !== window) { window.parent.document.addEventListener("pointerdown", closePops); addEventListener("pagehide", () => window.parent.document.removeEventListener("pointerdown", closePops)); }
+} catch (e) { /* other origin */ }
 // Host menus (Ask AI, New scan) close on a click outside them, but clicks in this frame never reach the host: pass one on.
 document.addEventListener("pointerdown", () => {
   try {
@@ -447,10 +463,12 @@ function openColors() {
   const below = r.bottom + 6, above = r.top - pop.offsetHeight - 6;  // open above the button when there is no room below, never over it
   pop.style.top = Math.max(8, below + pop.offsetHeight + 8 <= innerHeight || above < 8 ? below : above) + "px";
   if (btn) btn.setAttribute("aria-expanded", "true");
+  hostDim();
   pop.querySelector("input").focus();
 }
 function closeColors() {
   $("#colors").hidden = true;
+  hostDim();
   const btn = $("#legendBtn");
   if (btn) { btn.setAttribute("aria-expanded", "false"); btn.focus(); }
 }
@@ -466,7 +484,7 @@ try { dec = JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch (e) { d
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(dec)); } catch (e) { /* private mode: decisions last for this visit */ } };
 const pk = (p) => F[p.a].name + "\n" + F[p.b].name;
 const status = (p) => (dec[pk(p)] && dec[pk(p)].s) || "open";
-const S = {view: "pairs", q: "", fs: "all", fb: "all", sel: P.length ? 0 : -1, ren: false, sync: pref("sync") !== "off", frag: -1};
+const S = {view: "pairs", q: "", fs: "all", fb: "all", sel: P.length ? 0 : -1, ren: false, sync: pref("sync") !== "off", focus: pref("focus") !== "off", frag: -1};
 
 // ---------- syntax highlighting (whole file, so block comments and triple strings stay intact) ----------
 const KW = {
@@ -624,7 +642,7 @@ function renderDetail() {
       <div class="meta"><span class="score" title="Similarity score, 0 to 1">${p.score.toFixed(2)}</span><span class="band">${b[2]}</span><span>· ${beats}</span></div>
     </div>
     <details class="why"${pref("why") === "closed" ? "" : " open"}><summary>Why this pair ranks here</summary><dl class="facts">${facts}</dl></details>
-    <div class="legend"><button type="button" class="lg" id="legendBtn" aria-haspopup="dialog" aria-expanded="false" title="Change highlight colours (C)"><span><i style="background:var(--match)"></i>Same structure</span><span><i style="background:var(--verb)"></i>Identical rare line</span><span><i style="background:var(--hot)"></i>Selected fragment</span><span><i style="background:var(--ai)"></i>AI-style comment</span><span class="e">Colours</span></button><span>Click a highlighted line to align both sides</span><div class="tools"><div class="ctl" role="group" aria-label="Code text"><button class="btn" id="codeDown" type="button" aria-label="Smaller code" title="Smaller code (-)">A−</button><button class="btn" id="codeUp" type="button" aria-label="Larger code" title="Larger code (+)">A+</button><button class="btn" id="codeBold" type="button" aria-pressed="${codeBold}" title="Bold code (B)"><b>B</b></button><select id="codeFont" aria-label="Code font" title="Code font">${Object.keys(FONTS).map((f) => `<option${f === codeFont ? " selected" : ""}>${f}</option>`).join("")}</select></div><button type="button" class="sw" id="syncBtn" aria-pressed="${S.sync}" title="Scroll both sides together (S)">Sync scroll <kbd>S</kbd></button><button type="button" class="btn icon mx" id="maxBtn" aria-pressed="false"><svg class="i-max" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10"/></svg><svg class="i-min" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 2.5V6H2.5M13.5 6H10V2.5M10 13.5V10h3.5M2.5 10H6v3.5"/></svg></button></div></div>
+    <div class="legend"><button type="button" class="lg" id="legendBtn" aria-haspopup="dialog" aria-expanded="false" title="Change highlight colours (C)"><span><i style="background:var(--match)"></i>Same structure</span><span><i style="background:var(--verb)"></i>Identical rare line</span><span><i style="background:var(--hot)"></i>Selected fragment</span><span><i style="background:var(--ai)"></i>AI-style comment</span><span class="e">Colours</span></button><span>Click a highlighted line to align both sides</span><div class="tools"><div class="ctl" role="group" aria-label="Code text"><button class="btn" id="codeDown" type="button" aria-label="Smaller code" title="Smaller code (-)">A−</button><button class="btn" id="codeUp" type="button" aria-label="Larger code" title="Larger code (+)">A+</button><button class="btn" id="codeBold" type="button" aria-pressed="${codeBold}" title="Bold code (B)"><b>B</b></button><select id="codeFont" aria-label="Code font" title="Code font">${Object.keys(FONTS).map((f) => `<option${f === codeFont ? " selected" : ""}>${f}</option>`).join("")}</select></div><button type="button" class="sw" id="focusBtn" aria-pressed="${S.focus}" title="Shade the rest of the code while the pointer is on a highlighted fragment">Focus</button><button type="button" class="sw" id="syncBtn" aria-pressed="${S.sync}" title="Scroll both sides together (S)">Sync scroll <kbd>S</kbd></button><button type="button" class="btn icon mx" id="maxBtn" aria-pressed="false"><svg class="i-max" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10"/></svg><svg class="i-min" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 2.5V6H2.5M13.5 6H10V2.5M10 13.5V10h3.5M2.5 10H6v3.5"/></svg></button></div></div>
     <div class="panes">
       ${[["A", A, p.cov ? p.cov[0] : null], ["B", B, p.cov ? p.cov[1] : null]].map(([s, f, c]) => `
         <section class="pane" aria-label="File ${s}"><header><span class="s">${s}</span><span class="n" title="${esc(f.name)}">${esc(f.name)}</span>
@@ -734,12 +752,17 @@ function wireDetail(p, byLen) {
   main.querySelectorAll("[data-va]").forEach((el) => { el.onclick = () => { mark([]); align(+el.dataset.va, +el.dataset.vb); }; });
   $("#legendBtn").onclick = openColors;
   $("#syncBtn").onclick = () => setSync(!S.sync);
+  $("#focusBtn").onclick = (e) => { S.focus = !S.focus; pref("focus", S.focus ? "on" : "off"); e.currentTarget.setAttribute("aria-pressed", S.focus); };
   main.querySelector(".why").ontoggle = (e) => pref("why", e.target.open ? "open" : "closed");
   main.querySelectorAll("[data-ai]").forEach((el) => { el.onclick = () => showLine(el.dataset.ai, +el.dataset.line); });
   ["A", "B"].forEach((s) => {
     const c = $("#code" + s), o = s === "A" ? "B" : "A";
-    c.onmouseover = (e) => { const ln = e.target.closest(".ln"); if (ln) mark(fragAt[s][+ln.dataset.n] || []); };
-    c.onmouseleave = () => mark(S.frag >= 0 ? [S.frag] : []);
+    c.onmouseover = (e) => {
+      const ln = e.target.closest(".ln"), ks = (ln && fragAt[s][+ln.dataset.n]) || [];
+      if (ln) mark(ks);
+      c.closest(".panes").classList.toggle("spot", S.focus && ks.length > 0);
+    };
+    c.onmouseleave = () => { mark(S.frag >= 0 ? [S.frag] : []); c.closest(".panes").classList.remove("spot"); };
     c.onclick = (e) => { const ln = e.target.closest(".ln"); const ks = ln && fragAt[s][+ln.dataset.n]; if (ks && ks.length) jump(ks[0]); };
     c.onscroll = () => {
       if (!S.sync || lock) return;
@@ -851,7 +874,13 @@ $("#tPairs").onclick = () => setView("pairs");
 $("#tFiles").onclick = () => setView("files");
 $("#export").onclick = exportCsv;
 function resize(step) { setCode(codePx + step); if (S.frag >= 0) jump(S.frag); toast(`Code size ${codePx}px`); }
-$("#helpBtn").onclick = () => $("#help").showModal();
+function openHelp() { $("#help").showModal(); hostDim(); }
+$("#helpBtn").onclick = openHelp;
+$("#help").addEventListener("close", hostDim);
+$("#help").addEventListener("click", (e) => {  // a click on the dim (the dialog's backdrop) closes it
+  const d = e.currentTarget, r = d.getBoundingClientRect();
+  if (e.target === d && (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom)) d.close();
+});
 $("#list").onclick = (e) => {
   const r = e.target.closest(".row");
   if (!r) return;
@@ -927,7 +956,7 @@ document.addEventListener("keydown", (e) => {
     s: () => { setSync(!S.sync); toast(S.sync ? "Sync scrolling on" : "Sync scrolling off"); },
     "]": () => frags.length && jump((S.frag + 1) % frags.length),
     "[": () => frags.length && jump((S.frag - 1 + frags.length) % frags.length),
-    "/": () => $("#q").focus(), "?": () => $("#help").showModal(), t: toggleTheme,
+    "/": () => $("#q").focus(), "?": openHelp, t: toggleTheme,
     h: () => { const n = Object.keys(PRESETS), cur = n.find((k) => JSON.stringify(PRESETS[k]) === JSON.stringify(colors));
       const nx = n[(n.indexOf(cur) + 1) % n.length]; setColors(PRESETS[nx], true); toast("Colours: " + nx); },
     c: openColors, b: toggleBold, m: toggleSide, z: () => $("#maxBtn") && crossfade(() => setMax(!maxed)),
