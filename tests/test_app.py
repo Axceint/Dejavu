@@ -1,4 +1,6 @@
 """Review UI smoke test. Run from repo root: .venv\\Scripts\\python -m tests.test_app"""
+import csv
+import io
 import json
 import re
 from pathlib import Path
@@ -70,4 +72,11 @@ assert "const DATA = {" in iframe.srcdoc and "grid_bfs/ai_rewrite.java" in ifram
 # the unzip/read and scan bars only exist while scanning
 assert not at.get("progress"), [b.proto.text for b in at.get("progress")]
 assert 'id="sideBtn"' in iframe.srcdoc and 'id="maxBtn"' in iframe.srcdoc
+
+# CSV: student file names starting with a formula trigger (OWASP list) must not run in Excel
+from app import all_pairs_csv  # noqa: E402  (runs the page in bare mode; only the function is used)
+names = ["=HYPERLINK(1).py", "+x.py", "-x.py", "@x.py", "\t=1+1.py", "\r=1+1.py"]
+rows = list(csv.reader(io.StringIO(all_pairs_csv({"pairs": [{"a": n, "b": "ok.py", "score": 1} for n in names]}))))
+assert [r[2] for r in rows[1:]] == ["'" + n for n in names], rows
+assert rows[1][3] == "ok.py"
 print("APP PASS")
