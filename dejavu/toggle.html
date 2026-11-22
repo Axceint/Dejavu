@@ -22,6 +22,10 @@ button:hover{background:var(--sunk)}
 button:focus-visible{outline:2px solid var(--accent);outline-offset:-3px}
 svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round}
 [data-theme=dark] .i-moon,[data-theme=light] .i-sun{display:none}
+button:active{transform:translateY(1px)}
+.spin svg{animation:spin .3s cubic-bezier(.2,.8,.2,1)}
+@keyframes spin{from{transform:rotate(-90deg) scale(.5);opacity:0}}
+@media (prefers-reduced-motion:reduce){.spin svg{animation:none}}
 </style>
 </head>
 <body>
@@ -41,7 +45,16 @@ svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.6;stroke
     try { window.parent.document.documentElement.dataset.dejavuTheme = t; } catch (e) { /* other origin: host keeps its theme */ }
   }
   setTheme(root.dataset.theme, false);
-  btn.onclick = () => setTheme(root.dataset.theme === "dark" ? "light" : "dark", true);
+  btn.onclick = () => {  // one crossfade for the whole window, as in review.html
+    const apply = () => {
+      setTheme(root.dataset.theme === "dark" ? "light" : "dark", true);
+      btn.classList.remove("spin"); void btn.offsetWidth; btn.classList.add("spin");
+    };
+    let d = document;
+    try { if (window.parent.document.startViewTransition) d = window.parent.document; } catch (e) { /* other origin */ }
+    if (!d.startViewTransition || matchMedia("(prefers-reduced-motion: reduce)").matches) apply();
+    else d.startViewTransition(apply);
+  };
   matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (e) => {
     let saved = null;
     try { saved = localStorage.getItem("dejavu:theme"); } catch (err) { /* treat as unsaved */ }
