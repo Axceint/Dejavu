@@ -1,0 +1,50 @@
+name: adapt
+# Nightly: read scan telemetry (issue #69) and, when real uploads keep hitting ask.SPAN, open or update one
+# PR on auto/adapt. Never merges: CI runs on the PR and a person reviews it.
+on:
+  schedule:
+    - cron: "17 2 * * *"
+  workflow_dispatch:
+concurrency:
+  group: adapt
+  cancel-in-progress: false
+permissions:
+  contents: read
+  issues: read
+jobs:
+  adapt:
+    runs-on: ubuntu-latest
+    env:
+      ADAPT_TOKEN: ${{ secrets.ADAPT_TOKEN }}  # fine-grained PAT, this repo: Contents + Pull requests write
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # pushes made with the default token start no CI, so the PR would never be tested
+          token: ${{ secrets.ADAPT_TOKEN || github.token }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - id: run
+        run: |
+          python -m scripts.adapt | tee out.txt
+          git diff --quiet || echo "changed=1" >> "$GITHUB_OUTPUT"
+      - if: steps.run.outputs.changed && env.ADAPT_TOKEN == ''
+        run: echo "::warning::A SPAN change is due, but the ADAPT_TOKEN secret is not set, so no PR was opened."
+      - if: steps.run.outputs.changed && env.ADAPT_TOKEN != ''
+        env:
+          GH_TOKEN: ${{ secrets.ADAPT_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c auto/adapt
+          git commit -am "Adapt: $(head -1 out.txt)"
+          git push -f origin auto/adapt
+          body="$(cat out.txt)
+
+          Opened by the nightly adapt job from scan telemetry (#69). Review before merging."
+          if [ -z "$(gh pr list -H auto/adapt --state open --json number --jq '.[].number')" ]; then
+            gh pr create -B main -H auto/adapt -t "Adapt: raise ask.SPAN from scan telemetry" -b "$body"
+          else
+            gh pr edit auto/adapt -b "$body"
+          fi
