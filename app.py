@@ -146,6 +146,9 @@ html[data-dejavu-theme] [data-testid="stTextInput"] :is([data-baseweb="base-inpu
 [data-testid="stPopoverBody"] [data-testid="stTextInputRootElement"] button {color:var(--dj-muted)}
 [data-testid="stPopoverBody"] [data-testid="stTextInputRootElement"] button:hover {color:var(--dj-accent)}
 [data-testid="stPopoverBody"] input:-webkit-autofill {-webkit-box-shadow:0 0 0 40px var(--dj-sunk) inset; -webkit-text-fill-color:var(--dj-text)}
+/* Report: bug icon only. The label stays for screen readers, and the dropdown arrow is hidden */
+.st-key-reportbtn [data-testid="stPopoverButton"] [data-testid="stMarkdownContainer"] {position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%)}
+.st-key-reportbtn [data-testid="stPopoverButton"] > div > div:not(:first-child) {display:none}
 /* report form: Streamlit paints the text box and the Where menu in the OS theme; use the page's */
 html[data-dejavu-theme] :is([data-testid="stTextAreaRootElement"], [data-testid="stSelectbox"] .react-aria-ComboBox > div) {
   background:var(--dj-sunk); color:var(--dj-text); border-color:var(--dj-line)}
@@ -428,7 +431,7 @@ def ai_chip(slot):
 
 def report_menu(where_to):
     """Report a problem without leaving the app. The issue it files starts the autofix workflow (a draft fix PR)."""
-    with where_to.popover("Report an issue", icon=":material/bug_report:"):
+    with where_to.popover("Report an issue", icon=":material/bug_report:", help="Report an issue", key="reportbtn"):
         with st.form("report", border=False, clear_on_submit=True):
             what = st.text_area("What happened?", max_chars=telemetry.MAX_CHARS, key="report_text",
                                 placeholder="What you did, what you expected, what you saw")
