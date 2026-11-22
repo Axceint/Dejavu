@@ -96,11 +96,11 @@ ask.available = available
 # Report an issue: Send goes through telemetry.report; its number links the issue, its errors show as they are
 from dejavu import telemetry  # noqa: E402
 os.environ.pop("GH_TELEMETRY_TOKEN", None)
-at.text_area(key="report_text").input("Scan hangs").run()
+at.text_area(key="report_text").input("Scan hangs")  # typed and sent in one run, as in a form
 next(x for x in at.button if x.label == "Send").click().run()
 assert not at.exception and any("isn't set up" in e.value for e in at.error), [e.value for e in at.error]
 report, telemetry.report = telemetry.report, lambda text, where: 7
-at.text_area(key="report_text").input("Scan hangs").run()
+at.text_area(key="report_text").input("Scan hangs")
 next(x for x in at.button if x.label == "Send").click().run()
 assert any("issues/7" in s.value for s in at.success), [s.value for s in at.success]
 telemetry.report = report

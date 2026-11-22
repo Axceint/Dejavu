@@ -448,7 +448,7 @@ def report_menu(where_to, key="reportbtn"):
                 st.error(str(e))  # report() only raises fixed messages
             else:
                 st.success(f"Sent as [issue #{n}](https://github.com/Axceint/Dejavu/issues/{n}). "
-                           "An AI is drafting a fix; a person checks it before it ships.")
+                           "Small fixes get an AI-drafted fix; a person checks every fix before it ships.")
 
 
 job = need_index = None
