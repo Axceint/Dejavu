@@ -30,6 +30,7 @@ FUNC = {"function_definition", "method_declaration", "constructor_declaration"}
 CALL = {"call": "function", "call_expression": "function", "method_invocation": "name"}
 K = 6  # tokens per fingerprint (6 beat 5 on the separation margin once Python type hints and docstrings were dropped)
 MAX_BYTES = 1_000_000  # per file; real submissions are a few KB
+RING = 0.4  # pair score that links files into a copy ring: tests.test_engine keeps loop->recursion copies above 0.4, independent solutions below 0.3
 MATCH_TOP = 100  # shortcut: line matches only for the top 100 pairs, raise if the UI shows more
 # Cf = zero-width and bidi ("Trojan Source") controls; Zs/Zl/Zp = any space or line break except a plain space.
 HIDDEN = {"Cf", "Zs", "Zl", "Zp"}
@@ -238,4 +239,27 @@ def scan(path, base=None, progress=_quiet):
         p["matches"] = _blocks(fa, fb, fa.keys() & fb.keys()) if i < MATCH_TOP else []
     flags = {n: f for n, src in files.items() if (f := hidden_chars(src))}
     marks = {n: m for n, src in files.items() if (m := watermarks(src))}
-    return {"files": files, "pairs": pairs, "flags": flags, "marks": marks, "seconds": round(time.perf_counter() - start, 3)}
+    return {"files": files, "pairs": pairs, "rings": rings(pairs), "flags": flags, "marks": marks,
+            "seconds": round(time.perf_counter() - start, 3)}
+
+
+def rings(pairs, cut=RING):
+    """Groups of 3+ files linked by pairs scoring >= cut, biggest first: a hint that they share one source."""
+    root = {}
+
+    def find(n):
+        while root.setdefault(n, n) != n:
+            n = root[n]
+        return n
+
+    links = [p for p in pairs if p["score"] >= cut]
+    for p in links:
+        root[find(p["a"])] = find(p["b"])
+    members, scores = {}, {}
+    for n in list(root):
+        members.setdefault(find(n), []).append(n)
+    for p in links:
+        scores.setdefault(find(p["a"]), []).append(p["score"])
+    out = [{"files": sorted(members[r]), "score": round(sum(s) / len(s), 4)}
+           for r, s in scores.items() if len(members[r]) >= 3]
+    return sorted(out, key=lambda g: (-len(g["files"]), -g["score"]))

@@ -2,7 +2,7 @@
 import tempfile
 from pathlib import Path
 
-from dejavu.engine import scan, tokens
+from dejavu.engine import rings, scan, tokens
 
 res = scan(Path(__file__).parent / "fixtures")
 score = {frozenset((p["a"], p["b"])): p["score"] for p in res["pairs"]}
@@ -39,4 +39,11 @@ assert ("LOOP", 3) in tokens("class S:\n    def go(self, n):\n        return sel
 assert ("LOOP", 1) in tokens("struct S { int go(int n) { return this->go(n - 1); } };", "cpp"), "this->go() recursion"
 top = res["pairs"][0]
 assert top["matches"] and all(len(m) == 2 for m in top["matches"]), "top pair needs line matches"
+print("rings:", res["rings"])
+py = next(g for g in res["rings"] if "orig.py" in g["files"])
+assert {"renamed.py", "recursive.py"} <= set(py["files"]), "copies of orig.py form one ring"
+assert not any(n.startswith("independent") for g in res["rings"] for n in g["files"]), "independent solutions stay out"
+chain = [{"a": "a", "b": "b", "score": 0.9}, {"a": "b", "b": "c", "score": 0.5}, {"a": "d", "b": "e", "score": 0.95},
+         {"a": "c", "b": "x", "score": 0.1}]
+assert rings(chain) == [{"files": ["a", "b", "c"], "score": 0.7}], "chains link; lone pairs and weak links don't"
 print("ALL PASS")

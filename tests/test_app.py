@@ -38,10 +38,14 @@ for stage in order:
     last = [e for e in events if e[0] == stage][-1]
     assert last[1] == last[2], last
 
-# payload: demo ranks the 6 true copies first, with name roles as evidence
+# payload: demo ranks the 8 true copies first (6 AI rewrites, plus renamed.py vs both), with name roles as evidence
 kind = lambda i: data["files"][i]["name"].split("/")[1].split(".")[0]
-assert all({kind(p["a"]), kind(p["b"])} == {"orig", "ai_rewrite"} for p in data["pairs"][:6])
-assert ("distance", "dist", 7) in data["pairs"][0]["ren"], data["pairs"][0]["ren"]
+assert all(kind(p["a"]) != kind(p["b"]) and {kind(p["a"]), kind(p["b"])} <= {"orig", "ai_rewrite", "renamed"}
+           for p in data["pairs"][:8])
+java = next(p for p in data["pairs"] if data["files"][p["a"]]["name"] == "grid_bfs/ai_rewrite.java")
+assert ("distance", "dist", 7) in java["ren"], java["ren"]
+# demo set: renamed.py forms one copy ring with orig.py and ai_rewrite.py
+assert [sorted(kind(i) for i in g["files"]) for g in data["rings"]] == [["ai_rewrite", "orig", "renamed"]], data["rings"]
 # demo set: every AI rewrite has a flagged comment, no original or independent solution does
 for f in data["files"]:
     assert bool(f["ai"]) == ("ai_rewrite" in f["name"]), (f["name"], f["ai"])
@@ -76,7 +80,9 @@ assert 'id="sideBtn"' in iframe.srcdoc and 'id="maxBtn"' in iframe.srcdoc
 # CSV: student file names starting with a formula trigger (OWASP list) must not run in Excel
 from app import all_pairs_csv  # noqa: E402  (runs the page in bare mode; only the function is used)
 names = ["=HYPERLINK(1).py", "+x.py", "-x.py", "@x.py", "\t=1+1.py", "\r=1+1.py"]
-rows = list(csv.reader(io.StringIO(all_pairs_csv({"pairs": [{"a": n, "b": "ok.py", "score": 1} for n in names]}))))
+rows = list(csv.reader(io.StringIO(all_pairs_csv({"pairs": [{"a": n, "b": "ok.py", "score": 1} for n in names],
+                                                   "rings": [{"files": [names[0], names[1], "ok.py"]}]}))))
 assert [r[2] for r in rows[1:]] == ["'" + n for n in names], rows
 assert rows[1][3] == "ok.py"
+assert [r[4] for r in rows[1:]] == ["1", "1", "", "", "", ""], "ring number only when both files share a ring"
 print("APP PASS")

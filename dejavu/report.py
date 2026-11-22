@@ -15,7 +15,8 @@ LIMIT = 500  # shortcut: the app lists the top 500 pairs; reviewers never get th
 def payload(r, limit=LIMIT, progress=_quiet):
     """progress(stage, done, total) reports stage "explain": evidence for top pairs, then per-file comment checks."""
     pairs = r["pairs"][:limit]
-    names = sorted({n for p in pairs for n in (p["a"], p["b"])} | set(r["flags"]) | set(r["marks"]))
+    names = sorted({n for p in pairs for n in (p["a"], p["b"])} | set(r["flags"]) | set(r["marks"])
+                   | {n for g in r["rings"] for n in g["files"]})
     idx = {n: i for i, n in enumerate(names)}
     ctx = context(r)
     steps, done = sum(1 for p in pairs if p["matches"]) + len(names), 0
@@ -45,6 +46,7 @@ def payload(r, limit=LIMIT, progress=_quiet):
         "id": f"{key:08x}",
         "files": files,
         "pairs": out,
+        "rings": [{"files": [idx[n] for n in g["files"]], "score": g["score"]} for g in r["rings"]],
         "totalPairs": len(r["pairs"]),
         "totalFiles": len(r["files"]),
         "seconds": r["seconds"],

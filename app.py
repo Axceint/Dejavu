@@ -168,10 +168,12 @@ html[data-dejavu-theme] .st-key-askai_body [data-testid="stChatInputSubmitButton
 def all_pairs_csv(r):
     out = io.StringIO()
     w = csv.writer(out)
-    w.writerow(["rank", "score", "file_a", "file_b"])
+    w.writerow(["rank", "score", "file_a", "file_b", "ring"])
+    ring = {n: k for k, g in enumerate(r["rings"], 1) for n in g["files"]}
     # leading = + - @ tab or CR would run as a formula in Excel (OWASP); file names come from students
     safe = lambda s: "'" + s if s[:1] and s[:1] in "=+-@\t\r" else s
-    w.writerows([i, p["score"], safe(p["a"]), safe(p["b"])] for i, p in enumerate(r["pairs"], 1))
+    w.writerows([i, p["score"], safe(p["a"]), safe(p["b"]), k if (k := ring.get(p["a"])) and k == ring.get(p["b"]) else ""]
+                for i, p in enumerate(r["pairs"], 1))
     return out.getvalue()
 
 
