@@ -49,9 +49,14 @@ kbd{font:11px/1 var(--mono);padding:2px 4px;border:1px solid var(--line2);border
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 
 .app{height:100vh;display:grid;grid-template-columns:300px minmax(0,1fr);grid-template-rows:auto minmax(0,1fr)}
-.app.noside,.app.max{grid-template-columns:minmax(0,1fr)}
+/* the list slides shut: its column shrinks to 0 and it hides once the slide ends */
+.app{transition:grid-template-columns var(--fast) ease-out}
+.app.noside{grid-template-columns:0 minmax(0,1fr)}
+.app.max{grid-template-columns:minmax(0,1fr)}
+.app.noside .side{visibility:hidden}
+@media (prefers-reduced-motion:reduce){.app,.side{transition:none}}
 .app.max{grid-template-rows:minmax(0,1fr)}
-.app.noside .side,.app.max .side,.app.max .top,.app.max .dh,.app.max .why{display:none}
+.app.max .side,.app.max .top,.app.max .dh,.app.max .why{display:none}
 .app.max .legend{padding-top:8px}
 .legend .tools{display:flex;gap:12px;align-items:center;margin-left:auto;white-space:nowrap}  /* code size, sync, maximise stay together */
 #maxBtn[aria-pressed=true] .i-max,#maxBtn[aria-pressed=false] .i-min{display:none}
@@ -88,7 +93,7 @@ kbd{font:11px/1 var(--mono);padding:2px 4px;border:1px solid var(--line2);border
 :is(.btn,.row,button.chip,.lg,.sw,.seg button):active{transform:translateY(1px)}
 @media (prefers-reduced-motion:reduce){.spin svg{animation:none}.pop,dialog,dialog::backdrop{transition:none}}
 
-.side{display:flex;flex-direction:column;min-height:0;border-right:1px solid var(--line);background:var(--panel)}
+.side{display:flex;flex-direction:column;min-height:0;overflow:hidden;transition:visibility var(--fast);border-right:1px solid var(--line);background:var(--panel)}
 .seg{display:flex;gap:4px;padding:8px 12px 0}
 .seg button{flex:1;border:0;background:none;padding:6px 0;border-bottom:2px solid transparent;color:var(--muted)}
 .seg button[aria-selected=true]{color:var(--text);border-bottom-color:var(--accent);font-weight:600}
@@ -203,6 +208,7 @@ dialog td:first-child{width:110px}
 @media (max-width:860px){
   .app{grid-template-columns:1fr;grid-template-rows:auto auto minmax(0,1fr);height:auto;min-height:100vh}
   .side{border-right:0;border-bottom:1px solid var(--line)}
+  .app.noside{grid-template-columns:1fr}.app.noside .side{display:none}
   .list{max-height:220px}
   .panes{grid-template-columns:1fr}
   .code{max-height:420px}
