@@ -396,8 +396,13 @@ def ai_chip(slot):
         else:
             st.caption(f"Ask AI searches **{len(idx['chunks']):,}** chunks (one per function) from "
                        f"**{len({c['file'] for c in idx['chunks']}):,}** files of this scan.")
-        if st.button("Rebuild index", icon=":material/refresh:"):
+        row = st.container(horizontal=True)
+        if row.button("Rebuild index", icon=":material/refresh:"):
             st.session_state.update(ask_index=None, ask_err=None)
+            st.rerun()
+        # a used-up quota is per key; dropping the pasted key brings back the key box (a server secret can't be swapped)
+        if not os.getenv("LLM_API_KEY") and row.button("Use another key", icon=":material/key:"):
+            st.session_state.update(llm_key="", ask_index=None, ask_err=None)
             st.rerun()
     return False
 
