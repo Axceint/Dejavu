@@ -337,7 +337,10 @@ function setTheme(t, save) {
   $("#themeBtn").title = label + " (T)";
   if (save) { try { localStorage.setItem("dejavu:theme", t); } catch (e) { /* not saved: still applies now */ } }
   // Embedded in the Streamlit app: tell the host page, whose CSS repaints the frame around us to match.
-  try { if (window.parent !== window) window.parent.document.documentElement.dataset.dejavuTheme = t; } catch (e) { /* host on another origin keeps its own theme */ }
+  // Also saved as Streamlit's own theme, so the next load paints in it from the first frame (no flash).
+  // shortcut: Streamlit 1.67's internal storage key; if an update renames it, the flash returns until this is updated
+  try { if (window.parent !== window) { const h = window.parent; h.document.documentElement.dataset.dejavuTheme = t;
+    h.localStorage.setItem(`stActiveTheme-${h.location.pathname}-v2`, JSON.stringify(t === "dark" ? "Dark" : "Light")); } } catch (e) { /* host on another origin keeps its own theme */ }
 }
 // One crossfade for the whole window: the host page's snapshot includes this frame (same origin).
 function crossfade(apply) {

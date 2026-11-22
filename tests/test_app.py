@@ -70,6 +70,8 @@ at = AppTest.from_file("../app.py", default_timeout=60).run()
 assert not at.exception, at.exception
 toggle = at.get("iframe")[0].proto.srcdoc  # landing page carries the theme toggle, sharing the review's saved choice
 assert 'id="t"' in toggle and '"dejavu:theme"' in toggle and "/*__THEME__*/" not in toggle
+# both toggles also save Streamlit's own theme, so a refresh paints the chosen theme from the first frame
+assert all("`stActiveTheme-${h.location.pathname}-v2`" in s for s in (toggle, render(evil)))
 next(x for x in at.button if x.label == "Try the demo set").click().run()
 assert not at.exception, at.exception
 iframe = at.get("iframe")[0].proto
