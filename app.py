@@ -37,6 +37,8 @@ header[data-testid="stHeader"], footer {display:none}
 .st-key-phases:not(:has([data-testid="stProgress"])) {display:none}
 /* "Maximise" in the review screen sets data-dejavu-max here: the frame gives it the whole window */
 html[data-dejavu-max] .st-key-topbar, html[data-dejavu-max] .st-key-phases {display:none}
+/* Streamlit wraps each keyed block; hide the wrapper too, or its 16px gap still makes the page scroll */
+html[data-dejavu-max] [data-testid="stLayoutWrapper"]:has(> :is(.st-key-topbar, .st-key-phases)) {display:none}
 html[data-dejavu-max] .st-key-review iframe {height:calc(100dvh - 24px) !important}
 .st-key-review iframe {display:block; height:calc(100dvh - 80px) !important; min-height:520px;
   border:1px solid var(--dj-line, rgba(128,128,128,.25)); border-radius:10px}
