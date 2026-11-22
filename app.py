@@ -116,6 +116,7 @@ html [data-testid="stBaseButton-primary"]:disabled {opacity:.55; cursor:not-allo
 .st-key-demo > :has([data-testid="stMarkdown"]) {flex:1 1 0; min-width:0}  /* text and button on one row */
 .st-key-askai_body {width:min(420px, calc(100vw - 72px))}
 [data-testid="stPopoverBody"]:has(.st-key-askai_body) {box-shadow:0 12px 32px rgba(0,0,0,.22)}
+[data-testid="stPopoverBody"]:has(.st-key-aimenu) {margin-top:10px}  /* the chip sits lower than New scan; clear its border */
 /* every menu fades and rises in, and buttons press down */
 [data-testid="stPopoverBody"] {animation:dj-fade .2s ease-out}
 @keyframes dj-fade {0%, 40% {opacity:0; translate:0 4px} to {opacity:1; translate:none}}  /* hidden while the popover is still being positioned */
@@ -145,6 +146,13 @@ html[data-dejavu-theme] [data-testid="stTextInput"] :is([data-baseweb="base-inpu
 [data-testid="stPopoverBody"] [data-testid="stTextInputRootElement"] button {color:var(--dj-muted)}
 [data-testid="stPopoverBody"] [data-testid="stTextInputRootElement"] button:hover {color:var(--dj-accent)}
 [data-testid="stPopoverBody"] input:-webkit-autofill {-webkit-box-shadow:0 0 0 40px var(--dj-sunk) inset; -webkit-text-fill-color:var(--dj-text)}
+/* report form: Streamlit paints the text box and the Where menu in the OS theme; use the page's */
+html[data-dejavu-theme] :is([data-testid="stTextAreaRootElement"], [data-testid="stSelectbox"] .react-aria-ComboBox > div) {
+  background:var(--dj-sunk); color:var(--dj-text); border-color:var(--dj-line)}
+html[data-dejavu-theme] [data-testid="stSelectboxVirtualDropdown"] {background:var(--dj-panel); color:var(--dj-text);
+  border:1px solid var(--dj-line)}
+html[data-dejavu-theme] :is([data-testid="stSelectbox"] input, [data-testid="stSelectboxVirtualDropdown"] [role="option"]) {
+  color:var(--dj-text); -webkit-text-fill-color:var(--dj-text)}
 .st-key-aichip_off [data-testid="stPopoverButton"] {border-style:dashed; color:var(--dj-muted, inherit)}
 .st-key-aichip_ready [data-testid="stIconMaterial"] {color:var(--dj-ok, #3f6b3a)}
 .st-key-aichip_error :is([data-testid="stIconMaterial"], [data-testid="stMarkdownContainer"] p) {color:var(--dj-bad, #a8322a)}
@@ -387,8 +395,8 @@ def ai_chip(slot):
     Returns True when the index still has to be built (after the page is drawn, with progress in `slot`)."""
     if not ask.available():
         has_key = bool(ask.key())
-        with slot.container(key="aichip_off"), st.popover("AI RAG offline" if has_key else "AI RAG off", icon=":material/cloud_off:"):
-            st.caption("Couldn't reach the model, or it rejected the key." if has_key else "Ask AI needs a Gemini API key.")
+        with slot.container(key="aichip_off"), st.popover("AI RAG offline" if has_key else "AI RAG off", icon=":material/cloud_off:"), st.container(key="aimenu"):
+            st.caption("Couldn't reach the model, or it rejected the key." if has_key else "\"Ask AI\" needs a Gemini API key.")
             if not os.getenv("LLM_API_KEY"):  # a server secret can't be replaced from the page
                 with st.form("aikey", border=False):
                     k = st.text_input("API key", type="password", placeholder="Paste your Gemini key", autocomplete="off")
@@ -400,11 +408,11 @@ def ai_chip(slot):
     idx, err = st.session_state.get("ask_index"), st.session_state.get("ask_err")
     if idx is None and not err:
         return True
-    with slot.container(key="aichip_error" if err else "aichip_ready"),             st.popover("AI RAG error" if err else "AI RAG ready",icon=":material/error:" if err else ":material/check_circle:"):
+    with slot.container(key="aichip_error" if err else "aichip_ready"),             st.popover("AI RAG error" if err else "AI RAG ready",icon=":material/error:" if err else ":material/check_circle:"), st.container(key="aimenu"):
         if err:
             st.error(err)
         else:
-            st.caption(f"Ask AI searches **{len(idx['chunks']):,}** chunks (one per function) from "
+            st.caption(f"\"Ask AI\" searches **{len(idx['chunks']):,}** chunks (one per function) from "
                        f"**{len({c['file'] for c in idx['chunks']}):,}** files of this scan.")
         row = st.container(horizontal=True)
         if row.button("Rebuild index", icon=":material/refresh:"):
@@ -415,6 +423,24 @@ def ai_chip(slot):
             st.session_state.update(llm_key="", ask_index=None, ask_err=None)
             st.rerun()
     return False
+
+
+def report_menu():
+    """Report a problem without leaving the app. The issue it files starts the autofix workflow (a draft fix PR)."""
+    with st.form("report", border=False, clear_on_submit=True):
+        what = st.text_area("What happened?", max_chars=telemetry.MAX_CHARS, key="report_text",
+                            placeholder="What you did, what you expected, what you saw")
+        where = st.selectbox("Where", telemetry.WHERE)
+        st.caption("Posted publicly on GitHub. Leave out student code, names and keys.")
+        sent = st.form_submit_button("Send", type="primary")
+    if sent:
+        try:
+            n = telemetry.report(what, where)
+        except ValueError as e:
+            st.error(str(e))  # report() only raises fixed messages
+        else:
+            st.success(f"Sent as [issue #{n}](https://github.com/Axceint/Dejavu/issues/{n}). "
+                       "An AI is drafting a fix; a person checks it before it ships.")
 
 
 job = need_index = None
@@ -445,6 +471,8 @@ else:
     # the review screen has its own toggle; this one covers the landing page
     with bar.container(key="theme", width="content"):
         st.iframe(theme_toggle("light"), width=32, height=32)
+with bar.popover("Report an issue", icon=":material/bug_report:", type="tertiary"):
+    report_menu()
 
 if st.session_state.get("err"):
     st.error(st.session_state.err)

@@ -2,6 +2,7 @@
 import csv
 import io
 import json
+import os
 import re
 from pathlib import Path
 
@@ -86,6 +87,18 @@ next(x for x in at.button if x.label == "Use another key").click().run()
 assert not at.exception, at.exception
 assert at.session_state["llm_key"] == "" and any(x.label == "Use key" for x in at.button)
 ask.available = available
+
+# Report an issue: Send goes through telemetry.report; its number links the issue, its errors show as they are
+from dejavu import telemetry  # noqa: E402
+os.environ.pop("GH_TELEMETRY_TOKEN", None)
+at.text_area(key="report_text").input("Scan hangs").run()
+next(x for x in at.button if x.label == "Send").click().run()
+assert not at.exception and any("isn't set up" in e.value for e in at.error), [e.value for e in at.error]
+report, telemetry.report = telemetry.report, lambda text, where: 7
+at.text_area(key="report_text").input("Scan hangs").run()
+next(x for x in at.button if x.label == "Send").click().run()
+assert any("issues/7" in s.value for s in at.success), [s.value for s in at.success]
+telemetry.report = report
 
 # CSV: student file names starting with a formula trigger (OWASP list) must not run in Excel
 from app import all_pairs_csv  # noqa: E402  (runs the page in bare mode; only the function is used)

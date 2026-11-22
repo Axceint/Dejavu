@@ -1,0 +1,16 @@
+name: Bug report
+description: Something wrong or confusing in Dejavu
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, what you saw. Don't paste student code or API keys.
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where
+      options: [Upload or scan, Pair review, Ask AI, Export (report or CSV), Other]
