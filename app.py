@@ -51,10 +51,10 @@ html:not([data-dejavu-max]):has(.st-key-phases [data-testid="stProgress"]) .st-k
    data-dejavu-theme on this page and these rules repaint it (same palette as review.html and config.toml). */
 html {color-scheme:light; --dj-bg:#f6f1e9; --dj-panel:#fffcf7; --dj-sunk:#efe7db;
   --dj-line:#d6c8b4; --dj-text:#2a1f17; --dj-muted:#6f5f4f; --dj-accent:#a0522d; --dj-on-accent:#fffcf7; --dj-accent-ink:#a0522d;
-  --dj-kw:#8a4b1f; --dj-str:#4f6b2f; --dj-com:#9c8b78; --dj-num:#b0621e; --dj-ok:#3f6b3a; --dj-bad:#a8322a}
+  --dj-kw:#8a4b1f; --dj-str:#4f6b2f; --dj-com:#756657; --dj-num:#b0621e; --dj-ok:#3f6b3a; --dj-bad:#a8322a}
 html[data-dejavu-theme=dark] {color-scheme:dark; --dj-bg:#1b1612; --dj-panel:#231c17; --dj-sunk:#2c241e;
   --dj-line:#4a3d33; --dj-text:#f3e9dc; --dj-muted:#c2b09c; --dj-accent:#e0a36a; --dj-on-accent:#1b1612; --dj-accent-ink:#e0a36a;
-  --dj-kw:#e7b07a; --dj-str:#b9d08a; --dj-com:#8f7d6a; --dj-num:#f0b27a; --dj-ok:#a7cf8f; --dj-bad:#f19a8f}
+  --dj-kw:#e7b07a; --dj-str:#b9d08a; --dj-com:#9b8a78; --dj-num:#f0b27a; --dj-ok:#a7cf8f; --dj-bad:#f19a8f}
 html[data-dejavu-theme] [data-testid="stHeading"] :is(h1, h2, h3) {color:var(--dj-text)}
 html[data-dejavu-theme] [data-testid="stCaptionContainer"] {color:var(--dj-muted)}
 html[data-dejavu-theme] [data-testid="stCode"] pre {background:var(--dj-sunk); color:var(--dj-text)}
@@ -77,6 +77,9 @@ html[data-dejavu-theme] [data-testid="stCheckbox"] label:has(input:checked) > di
 html[data-dejavu-theme] [data-testid="stCheckbox"] label > div:first-of-type polyline {stroke:var(--dj-on-accent)}
 /* and help tooltips (their text already follows the page, so the box must too) */
 html[data-dejavu-theme] [data-testid="stTooltipContent"] {background:var(--dj-panel); color:var(--dj-text); border:1px solid var(--dj-line)}
+/* help "?" icons, heading link icons and dropdown arrows are drawn in the OS theme too */
+html[data-dejavu-theme] :is([data-testid="stTooltipIcon"], [data-testid="stHeaderActionElements"]) svg {stroke:var(--dj-muted) !important}
+html[data-dejavu-theme] [data-testid="stSelectbox"] svg {color:var(--dj-muted)}
 html[data-dejavu-theme] [data-testid="stMarkdownContainer"] code {background:var(--dj-sunk); color:var(--dj-muted)}
 html[data-dejavu-theme] [data-testid="stFileUploaderDropzone"] {background:var(--dj-sunk); color:var(--dj-text); border-color:var(--dj-line)}
 html[data-dejavu-theme] [data-testid="stFileUploaderDropzoneInstructions"] * {color:var(--dj-muted)}
@@ -84,14 +87,14 @@ html[data-dejavu-theme] :is([data-testid="stBaseButton-secondary"], [data-testid
   background:var(--dj-panel); border-color:var(--dj-line); color:var(--dj-text)}
 html[data-dejavu-theme] :is([data-testid="stBaseButton-secondary"], [data-testid="stPopoverButton"]):hover {
   background:var(--dj-sunk); border-color:var(--dj-text); color:var(--dj-text)}
-/* One accent and one foreground treatment for every primary action, including Ask AI. */
-html :is([data-testid="stBaseButton-primary"], .st-key-askai [data-testid="stPopoverButton"]) {
+/* One accent and one foreground treatment for every primary action, including Ask AI and form submit buttons (^=). */
+html :is([data-testid^="stBaseButton-primary"], .st-key-askai [data-testid="stPopoverButton"]) {
   background:var(--dj-accent); border-color:var(--dj-accent); color:var(--dj-on-accent); font-weight:600}
-html :is([data-testid="stBaseButton-primary"], .st-key-askai [data-testid="stPopoverButton"]) * {
+html :is([data-testid^="stBaseButton-primary"], .st-key-askai [data-testid="stPopoverButton"]) * {
   color:var(--dj-on-accent) !important}
-html :is([data-testid="stBaseButton-primary"]:not(:disabled), .st-key-askai [data-testid="stPopoverButton"]):hover {
+html :is([data-testid^="stBaseButton-primary"]:not(:disabled), .st-key-askai [data-testid="stPopoverButton"]):hover {
   background:var(--dj-accent); border-color:var(--dj-accent); color:var(--dj-on-accent); filter:brightness(1.08)}
-html [data-testid="stBaseButton-primary"]:disabled {opacity:.55; cursor:not-allowed}
+html [data-testid^="stBaseButton-primary"]:disabled {opacity:.55; cursor:not-allowed}
 
 /* Start page: the headline and the upload card */
 .st-key-intro [data-testid="stHeading"] h1 {font-size:2rem; line-height:1.15; padding:8px 0 12px; text-wrap:balance}  /* no lone last word */
@@ -114,6 +117,9 @@ html [data-testid="stBaseButton-primary"]:disabled {opacity:.55; cursor:not-allo
 .st-key-how [data-testid="stHeading"] h3 {font-size:1.25rem; padding:10px 0 8px}  /* section labels, under the title */
 .st-key-how [data-testid="stCode"] pre code {font-size:13px}  /* the two-column example fits a 400px column */
 .st-key-demo > :has([data-testid="stMarkdown"]) {flex:1 1 0; min-width:0}  /* text and button on one row */
+/* phones: the demo button goes under its text, and the example's two columns stack */
+@media (max-width:640px) {.st-key-demo {flex-wrap:wrap} .st-key-demo > :has([data-testid="stMarkdown"]) {flex-basis:100%}
+  .djb .row {grid-template-columns:minmax(0,1fr); gap:10px} .djb .gap {display:none}}
 .st-key-askai_body {width:min(420px, calc(100vw - 72px))}
 [data-testid="stPopoverBody"]:has(.st-key-askai_body) {box-shadow:0 12px 32px rgba(0,0,0,.22)}
 [data-testid="stPopoverBody"]:has(.st-key-aimenu) {margin-top:10px}  /* the chip sits lower than New scan; clear its border */
@@ -289,7 +295,7 @@ BOARD_CSS = """<style>
 .djb .ln{height:var(--lh);white-space:pre;padding:0 10px 0 0;display:flex;transition:background .15s ease-out}
 .djb .ln i{font-style:normal;width:26px;flex:none;text-align:right;padding-right:8px;color:var(--dj-com);user-select:none}
 .djb .ln.m{background:color-mix(in srgb,var(--dj-accent) 11%,transparent)}
-.djb .ln.x{opacity:.55}
+.djb .ln.x{opacity:.7}
 .djb .k{color:var(--dj-kw);font-weight:600}.djb .f{font-weight:600}.djb .n{color:var(--dj-num)}.djb .c{color:var(--dj-com);font-style:italic}
 .djb .gap{align-self:stretch;background:no-repeat 0 0/44px auto}
 .djb .tags{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0 0}
