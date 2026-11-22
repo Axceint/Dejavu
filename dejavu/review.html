@@ -74,6 +74,19 @@ kbd{font:11px/1 var(--mono);padding:2px 4px;border:1px solid var(--line2);border
 .btn.icon{width:30px;padding:4px 0;display:inline-flex;align-items:center;justify-content:center}
 .btn.icon svg{width:16px;height:20px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round}
 [data-theme=dark] .i-moon,[data-theme=light] .i-sun{display:none}
+/* motion: opacity and position only, --fast long; all of it off under reduced motion (block below) */
+:root{--fast:.15s}
+.spin svg{animation:spin .3s cubic-bezier(.2,.8,.2,1)}
+@keyframes spin{from{transform:rotate(-90deg) scale(.5);opacity:0}}
+.pop,dialog,dialog::backdrop{transition:opacity var(--fast) ease-out,transform var(--fast) ease-out,display var(--fast) allow-discrete,overlay var(--fast) allow-discrete}
+.pop[hidden],dialog:not([open]),dialog:not([open])::backdrop{opacity:0}
+.pop[hidden],dialog:not([open]){transform:translateY(4px)}
+@starting-style{
+  .pop:not([hidden]),dialog[open],dialog[open]::backdrop{opacity:0}
+  .pop:not([hidden]),dialog[open]{transform:translateY(4px)}
+}
+:is(.btn,.row,button.chip,.lg,.sw,.seg button):active{transform:translateY(1px)}
+@media (prefers-reduced-motion:reduce){.spin svg{animation:none}.pop,dialog,dialog::backdrop{transition:none}}
 
 .side{display:flex;flex-direction:column;min-height:0;border-right:1px solid var(--line);background:var(--panel)}
 .seg{display:flex;gap:4px;padding:8px 12px 0}
@@ -182,8 +195,8 @@ dialog h2{font-size:14px;margin:0 0 8px}
 dialog table{border-collapse:collapse;width:100%}
 dialog td{padding:4px 0;border-bottom:1px solid var(--line)}
 dialog td:first-child{width:110px}
-.toast{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:6px 12px;border-radius:4px;opacity:0;transition:opacity .15s;pointer-events:none}
-.toast.on{opacity:1}
+.toast{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:6px 12px;border-radius:4px;opacity:0;transition:opacity .15s,translate .15s;pointer-events:none;translate:0 6px}
+.toast.on{opacity:1;translate:none}
 @media (prefers-reduced-motion:reduce){.toast{transition:none}}
 
 @media (max-width:1060px){.legend{flex-wrap:wrap}.legend>span{display:none}} /* the tip would only show as "Clic…" */
@@ -298,7 +311,17 @@ function setTheme(t, save) {
   // Embedded in the Streamlit app: tell the host page, whose CSS repaints the frame around us to match.
   try { if (window.parent !== window) window.parent.document.documentElement.dataset.dejavuTheme = t; } catch (e) { /* host on another origin keeps its own theme */ }
 }
-const toggleTheme = () => setTheme(root.dataset.theme === "dark" ? "light" : "dark", true);
+// One crossfade for the whole window: the host page's snapshot includes this frame (same origin).
+function crossfade(apply) {
+  let d = document;
+  try { if (window.parent.document.startViewTransition) d = window.parent.document; } catch (e) { /* other origin: fade this frame only */ }
+  if (!d.startViewTransition || matchMedia("(prefers-reduced-motion: reduce)").matches) return apply();
+  d.startViewTransition(apply);
+}
+const toggleTheme = () => crossfade(() => {
+  setTheme(root.dataset.theme === "dark" ? "light" : "dark", true);
+  const b = $("#themeBtn"); b.classList.remove("spin"); void b.offsetWidth; b.classList.add("spin");  // restart the icon swap
+});
 setTheme(root.dataset.theme, false);
 $("#themeBtn").onclick = toggleTheme;
 // With no saved choice and no host theme, keep following the OS if it changes.

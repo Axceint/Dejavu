@@ -109,10 +109,12 @@ html [data-testid="stBaseButton-primary"]:disabled {opacity:.55; cursor:not-allo
 .st-key-how [data-testid="stCode"] pre code {font-size:13px}  /* the two-column example fits a 400px column */
 .st-key-demo > :has([data-testid="stMarkdown"]) {flex:1 1 0; min-width:0}  /* text and button on one row */
 .st-key-askai_body {width:min(420px, calc(100vw - 72px))}
-[data-testid="stPopoverBody"]:has(.st-key-askai_body) {box-shadow:0 12px 32px rgba(0,0,0,.22);
-  animation:dj-fade .2s ease-out}
-@keyframes dj-fade {0%, 40% {opacity:0} to {opacity:1}}  /* hidden while the popover is still being positioned */
-@media (prefers-reduced-motion: reduce) {[data-testid="stPopoverBody"]:has(.st-key-askai_body) {animation:none}}
+[data-testid="stPopoverBody"]:has(.st-key-askai_body) {box-shadow:0 12px 32px rgba(0,0,0,.22)}
+/* every menu fades and rises in, and buttons press down */
+[data-testid="stPopoverBody"] {animation:dj-fade .2s ease-out}
+@keyframes dj-fade {0%, 40% {opacity:0; translate:0 4px} to {opacity:1; translate:none}}  /* hidden while the popover is still being positioned */
+[data-testid^="stBaseButton"]:active:not(:disabled) {transform:translateY(1px)}
+@media (prefers-reduced-motion: reduce) {[data-testid="stPopoverBody"] {animation:none}}
 /* AI status chip, in the middle of the top bar: off (grey), ready (green), error (red), indexing (red, pulsing) */
 /* centred in the free space between the name and the buttons */
 /* brand and buttons get equal shares, so the chip sits at the page centre (it moves only when the buttons need the room) */
