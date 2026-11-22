@@ -149,6 +149,7 @@ html[data-dejavu-theme] [data-testid="stTextInput"] :is([data-baseweb="base-inpu
 /* report form: Streamlit paints the text box and the Where menu in the OS theme; use the page's */
 html[data-dejavu-theme] :is([data-testid="stTextAreaRootElement"], [data-testid="stSelectbox"] .react-aria-ComboBox > div) {
   background:var(--dj-sunk); color:var(--dj-text); border-color:var(--dj-line)}
+[data-testid="stSelectbox"] input {cursor:pointer}  /* a pick list, not a text field */
 html[data-dejavu-theme] [data-testid="stSelectboxVirtualDropdown"] {background:var(--dj-panel); color:var(--dj-text);
   border:1px solid var(--dj-line)}
 html[data-dejavu-theme] :is([data-testid="stSelectbox"] input, [data-testid="stSelectboxVirtualDropdown"] [role="option"]) {
@@ -425,22 +426,23 @@ def ai_chip(slot):
     return False
 
 
-def report_menu():
+def report_menu(where_to):
     """Report a problem without leaving the app. The issue it files starts the autofix workflow (a draft fix PR)."""
-    with st.form("report", border=False, clear_on_submit=True):
-        what = st.text_area("What happened?", max_chars=telemetry.MAX_CHARS, key="report_text",
-                            placeholder="What you did, what you expected, what you saw")
-        where = st.selectbox("Where", telemetry.WHERE)
-        st.caption("Posted publicly on GitHub. Leave out student code, names and keys.")
-        sent = st.form_submit_button("Send", type="primary")
-    if sent:
-        try:
-            n = telemetry.report(what, where)
-        except ValueError as e:
-            st.error(str(e))  # report() only raises fixed messages
-        else:
-            st.success(f"Sent as [issue #{n}](https://github.com/Axceint/Dejavu/issues/{n}). "
-                       "An AI is drafting a fix; a person checks it before it ships.")
+    with where_to.popover("Report an issue", icon=":material/bug_report:"):
+        with st.form("report", border=False, clear_on_submit=True):
+            what = st.text_area("What happened?", max_chars=telemetry.MAX_CHARS, key="report_text",
+                                placeholder="What you did, what you expected, what you saw")
+            where = st.selectbox("Where", telemetry.WHERE)
+            st.caption("Posted publicly on GitHub. Leave out student code, names and keys.")
+            sent = st.form_submit_button("Send", type="primary")
+        if sent:
+            try:
+                n = telemetry.report(what, where)
+            except ValueError as e:
+                st.error(str(e))  # report() only raises fixed messages
+            else:
+                st.success(f"Sent as [issue #{n}](https://github.com/Axceint/Dejavu/issues/{n}). "
+                           "An AI is drafting a fix; a person checks it before it ships.")
 
 
 job = need_index = None
@@ -465,14 +467,14 @@ if html:
     acts.download_button("Offline report", html, "dejavu-report.html", "text/html",
                         help="The same review screen as one HTML file. Opens without a server.")
     acts.download_button("All pairs CSV", st.session_state.csv, "dejavu-pairs.csv", "text/csv")
+    report_menu(acts)  # inside the actions group, so brand and actions stay equal and the AI chip stays centred
     with acts:
         ask_ai()
 else:
     # the review screen has its own toggle; this one covers the landing page
     with bar.container(key="theme", width="content"):
         st.iframe(theme_toggle("light"), width=32, height=32)
-with bar.popover("Report an issue", icon=":material/bug_report:", type="tertiary"):
-    report_menu()
+    report_menu(bar)
 
 if st.session_state.get("err"):
     st.error(st.session_state.err)
