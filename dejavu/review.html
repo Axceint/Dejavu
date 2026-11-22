@@ -91,12 +91,33 @@ kbd{font:11px/1 var(--mono);padding:2px 4px;border:1px solid var(--line2);border
   .pop:not([hidden]),dialog[open]{transform:translateY(4px)}
 }
 :is(.btn,.row,button.chip,.lg,.sw,.seg button):active{transform:translateY(1px)}
-@media (prefers-reduced-motion:reduce){.spin svg{animation:none}.pop,dialog,dialog::backdrop{transition:none}}
+/* hover and press ease in instead of snapping */
+:is(.btn,.row,button.chip,.lg,.sw,.seg button,.filters input,.filters select,.note){transition:background-color var(--fast),border-color var(--fast),color var(--fast),transform 60ms}
+/* "Why this pair ranks here" opens and shuts by height (browsers without this open instantly) */
+.why{interpolate-size:allow-keywords}
+.why::details-content{height:0;overflow:clip;transition:height .2s ease-out,content-visibility .2s allow-discrete}
+.why[open]::details-content{height:auto}
+/* filter menus drop in (browsers with customizable select; the rest keep their native menu) */
+.filters select{appearance:base-select}
+.filters select::picker(select){appearance:base-select;border:1px solid var(--line2);border-radius:6px;background:var(--panel);color:var(--text);padding:4px;margin-top:4px;
+  box-shadow:0 8px 24px rgba(0,0,0,.18);opacity:0;translate:0 -4px;
+  transition:opacity var(--fast) ease-out,translate var(--fast) ease-out,display var(--fast) allow-discrete,overlay var(--fast) allow-discrete}
+.filters select:open::picker(select){opacity:1;translate:none}
+@starting-style{.filters select:open::picker(select){opacity:0;translate:0 -4px}}
+.filters option{padding:4px 8px;border-radius:4px}
+.filters option:is(:hover,:focus-visible){background:var(--sunk)}
+.filters select::picker-icon{transition:rotate var(--fast)}
+.filters select:open::picker-icon{rotate:180deg}
+@media (prefers-reduced-motion:reduce){.spin svg{animation:none}.pop,dialog,dialog::backdrop,.why::details-content,.seg::after{transition:none}}
+@media (prefers-reduced-motion:reduce){.filters select::picker(select),.filters select::picker-icon{transition:none}}
 
 .side{display:flex;flex-direction:column;min-height:0;overflow:hidden;transition:visibility var(--fast);border-right:1px solid var(--line);background:var(--panel)}
-.seg{display:flex;gap:4px;padding:8px 12px 0}
+.seg{display:flex;gap:4px;padding:8px 12px 0;position:relative}
 .seg button{flex:1;border:0;background:none;padding:6px 0;border-bottom:2px solid transparent;color:var(--muted)}
-.seg button[aria-selected=true]{color:var(--text);border-bottom-color:var(--accent);font-weight:600}
+.seg button[aria-selected=true]{color:var(--text);font-weight:600}
+/* one underline that slides to the selected tab (two equal tabs, 12px side padding, 4px gap) */
+.seg::after{content:"";position:absolute;left:12px;bottom:0;width:calc((100% - 28px) / 2);height:2px;background:var(--accent);transition:translate var(--fast) ease-out}
+.seg:has(#tFiles[aria-selected=true])::after{translate:calc(100% + 4px)}
 .filters{padding:8px 12px;display:grid;gap:8px;border-bottom:1px solid var(--line)}
 .filters input,.filters select{width:100%;border:1px solid var(--line2);background:var(--bg);border-radius:4px;padding:4px 8px;line-height:20px}
 .frow{display:grid;grid-template-columns:1fr 1fr;gap:8px}
@@ -323,6 +344,8 @@ function crossfade(apply) {
   if (!d.startViewTransition || matchMedia("(prefers-reduced-motion: reduce)").matches) return apply();
   d.startViewTransition(apply);
 }
+// content that just changed fades in; skipped under reduced motion
+const settle = (el) => matchMedia("(prefers-reduced-motion: reduce)").matches || el.animate({opacity: [.3, 1]}, {duration: 150, easing: "ease-out"});
 const toggleTheme = () => crossfade(() => {
   setTheme(root.dataset.theme === "dark" ? "light" : "dark", true);
   const b = $("#themeBtn"); b.classList.remove("spin"); void b.offsetWidth; b.classList.add("spin");  // restart the icon swap
@@ -584,7 +607,7 @@ function renderDetail() {
     </div>`;
   paintCode(p);
   wireDetail(p, byLen);
-  $("#maxBtn").onclick = () => setMax(!maxed);
+  $("#maxBtn").onclick = () => crossfade(() => setMax(!maxed));
   $("#codeDown").onclick = () => resize(-1);  // code size sits with the panes, so it stays when maximised
   $("#codeUp").onclick = () => resize(1);
   setMax(maxed);
@@ -710,6 +733,7 @@ function select(i, focusRow) {
   S.sel = i;
   renderList();
   renderDetail();
+  settle(main);
   const row = document.querySelector(`.row[data-i="${i}"]`);
   if (row) { row.scrollIntoView({block: "nearest"}); if (focusRow) row.focus(); }
 }
@@ -784,6 +808,7 @@ function setView(v) {
   $("#tPairs").setAttribute("aria-selected", v === "pairs");
   $("#tFiles").setAttribute("aria-selected", v === "files");
   renderList();
+  settle($("#list"));
 }
 
 // ---------- wiring ----------
@@ -792,8 +817,8 @@ $("#stats").innerHTML = tile(DATA.totalFiles.toLocaleString(), "files")
   + tile(DATA.totalPairs.toLocaleString(), "pairs share code")
   + tile(`${DATA.seconds}<small>s</small>`, "scan time");
 $("#q").oninput = (e) => { S.q = e.target.value; renderList(); };
-$("#fs").onchange = (e) => { S.fs = e.target.value; renderList(); };
-$("#fb").onchange = (e) => { S.fb = e.target.value; renderList(); };
+$("#fs").onchange = (e) => { S.fs = e.target.value; renderList(); settle($("#list")); };
+$("#fb").onchange = (e) => { S.fb = e.target.value; renderList(); settle($("#list")); };
 $("#tPairs").onclick = () => setView("pairs");
 $("#tFiles").onclick = () => setView("files");
 $("#export").onclick = exportCsv;
@@ -877,8 +902,8 @@ document.addEventListener("keydown", (e) => {
     "/": () => $("#q").focus(), "?": () => $("#help").showModal(), t: toggleTheme,
     h: () => { const n = Object.keys(PRESETS), cur = n.find((k) => JSON.stringify(PRESETS[k]) === JSON.stringify(colors));
       const nx = n[(n.indexOf(cur) + 1) % n.length]; setColors(PRESETS[nx], true); toast("Colours: " + nx); },
-    c: openColors, b: toggleSide, m: () => $("#maxBtn") && setMax(!maxed),
-    escape: () => maxed && setMax(false),
+    c: openColors, b: toggleSide, m: () => $("#maxBtn") && crossfade(() => setMax(!maxed)),
+    escape: () => maxed && crossfade(() => setMax(false)),
     "-": () => resize(-1), "=": () => resize(1), "+": () => resize(1),
   };
   const fn = keys[e.key.toLowerCase()] || keys[e.key];
