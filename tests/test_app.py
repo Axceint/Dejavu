@@ -77,6 +77,16 @@ assert "const DATA = {" in iframe.srcdoc and "grid_bfs/ai_rewrite.java" in ifram
 assert not at.get("progress"), [b.proto.text for b in at.get("progress")]
 assert 'id="sideBtn"' in iframe.srcdoc and 'id="maxBtn"' in iframe.srcdoc
 
+# AI RAG error (e.g. used-up quota): "Use another key" drops the pasted key and brings back the key box
+from dejavu import ask  # noqa: E402  (same module object the app uses)
+available, ask.available = ask.available, lambda: bool(ask.key())  # any key "works"; no network in CI
+at.session_state["llm_key"], at.session_state["ask_err"] = "sk-used-up", "The model's free quota is used up for now."
+at.run()
+next(x for x in at.button if x.label == "Use another key").click().run()
+assert not at.exception, at.exception
+assert at.session_state["llm_key"] == "" and any(x.label == "Use key" for x in at.button)
+ask.available = available
+
 # CSV: student file names starting with a formula trigger (OWASP list) must not run in Excel
 from app import all_pairs_csv  # noqa: E402  (runs the page in bare mode; only the function is used)
 names = ["=HYPERLINK(1).py", "+x.py", "-x.py", "@x.py", "\t=1+1.py", "\r=1+1.py"]
