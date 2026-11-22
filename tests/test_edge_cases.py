@@ -168,6 +168,27 @@ with tempfile.TemporaryDirectory() as d:  # LMS layout: one folder per student, 
     assert pair(r, "hw1/s1/util.py", "hw1/s2/main.py") > 0.99, "across students still counts"
     assert pair(r, "hw1/loose.py", "hw1/s1/main.py") > 0.99, "a file outside any student folder is its own submission"
 
+scan_marks = lambda p: (lambda r: next(iter(r["marks"].values()), []))(scan(p))
+
+with tempfile.TemporaryDirectory() as d:  # PowerShell 5's `>` and Notepad's "Unicode" save UTF-16: a copy scored 0
+    d = Path(d)
+    with zipfile.ZipFile(d / "u.zip", "w") as z:
+        z.writestr("a.py", ORIG)
+        z.writestr("le.py", ORIG.encode("utf-16"))  # little-endian with BOM, as Windows writes it
+        z.writestr("be.py", "﻿".encode("utf-16-be") + ORIG.encode("utf-16-be"))
+    r = scan(d / "u.zip")
+    assert pair(r, "a.py", "le.py") > 0.99 and pair(r, "a.py", "be.py") > 0.99, "UTF-16 copies must match"
+    assert not r["flags"], f"a BOM is not a hidden character: {r['flags']}"
+    with zipfile.ZipFile(d / "crlf.zip", "w") as z:  # a zip made on Windows keeps CRLF; \r hid the fence watermark
+        z.writestr("a.py", "```\r\n" + ORIG.replace("\n", "\r\n"))
+    assert [m["kind"] for m in scan_marks(d / "crlf.zip")] == ["chat code fence"], "CRLF must not hide watermarks"
+    (d / "dir").mkdir()
+    (d / "dir" / "a.py").write_text(ORIG)
+    (d / "dir" / "b.py").write_bytes(ORIG.encode("utf-16"))
+    assert pair(scan(d / "dir"), "a.py", "b.py") > 0.99, "UTF-16 in a folder must match"
+    (d / "base.py").write_bytes(ORIG.encode("utf-16"))  # starter saved as UTF-16 must still be subtracted
+    assert pair(scan(d / "dir", base=d / "base.py"), "a.py", "b.py") < 0.1, "UTF-16 starter must be ignored in scoring"
+
 try:
     scan("does/not/exist")
     raise AssertionError("missing path must raise")
