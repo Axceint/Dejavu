@@ -219,7 +219,7 @@ def run(job, area):
                     (Path(d) / "base").mkdir()
                     base = Path(d, "base", job["starter_name"])  # keep the suffix: scan() picks the language from it
                     base.write_bytes(job["starter"])
-            r = scan(path, base, tick)
+            r = scan(path, base, tick, job.get("by_folder", False))
             data = payload(r, progress=tick)
             # the whole wait (unzip, scan and evidence), not just scan()'s comparison step
             data["seconds"] = round(time.perf_counter() - t["start"], 3)
@@ -239,9 +239,11 @@ def upload_form(key):
     up = st.file_uploader("Submissions: one .zip of .py, .cpp or .java files", type="zip", key=f"z{key}")
     starter = st.file_uploader("Starter code everyone received (optional). Matches inside it are ignored.",
                                type=["py", "cpp", "java", "zip"], key=f"s{key}")
+    by_folder = st.checkbox("Each folder is one student", key=f"f{key}",
+                            help="Files in the same folder are never compared with each other.")
     if st.button("Scan", type="primary", disabled=up is None, key=f"b{key}"):
         return {"name": up.name, "zip": up.getvalue(), "starter": starter.getvalue() if starter else None,
-                "starter_name": Path(starter.name).name if starter else None}
+                "starter_name": Path(starter.name).name if starter else None, "by_folder": by_folder}
     return None
 
 

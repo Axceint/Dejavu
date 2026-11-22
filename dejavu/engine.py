@@ -209,9 +209,21 @@ def _blocks(fa, fb, shared):
     return out
 
 
-def scan(path, base=None, progress=_quiet):
+def _owners(names):
+    """Each file's student: the folder right below the folders every file shares (a zip's wrapper folder is
+    skipped). A file directly in that shared folder is its own student."""
+    dirs = [Path(n).parts[:-1] for n in names]
+    r = 0
+    while all(len(d) > r for d in dirs) and len({d[r] for d in dirs}) == 1:
+        r += 1
+    return {n: d[r] if len(d) > r else n for n, d in zip(names, dirs)}
+
+
+def scan(path, base=None, progress=_quiet, by_folder=False):
     """base: starter code every student got (file, folder or .zip). Code found in it is ignored, like MOSS -b.
-    progress(stage, done, total) reports stages "read", "parse" and "compare" for a progress bar."""
+    progress(stage, done, total) reports stages "read", "parse" and "compare" for a progress bar.
+    by_folder: each folder is one student, so files in the same student folder are never paired (off by default:
+    in the demo set a folder is an assignment)."""
     start = time.perf_counter()
     files = load(path, progress)
     fp = lambda n, src: fingerprints(tokens(_clean(src), LANG[Path(n).suffix.lower()]))
@@ -228,7 +240,7 @@ def scan(path, base=None, progress=_quiet):
             bfiles = load(bp)  # raises when it holds no code
         skip = {h for n, src in bfiles.items() for h in fp(n, src)}
         fps = {n: {h: v for h, v in f.items() if h not in skip} for n, f in fps.items()}
-    pairs = []
+    pairs, owner = [], _owners(list(files)) if by_folder else None
     by_lang = {}
     for n in files:
         by_lang.setdefault(LANG[Path(n).suffix.lower()], []).append(n)
@@ -242,6 +254,8 @@ def scan(path, base=None, progress=_quiet):
             done += 1
             if done % 2000 == 0:  # 45k pairs for 300 files; every pair would flood the progress bar
                 progress("compare", done, todo)
+            if owner and owner[a] == owner[b]:  # one student's own files
+                continue
             shared = fps[a].keys() & fps[b].keys()
             if not shared:
                 continue
