@@ -134,6 +134,11 @@ html [data-testid="stBaseButton-primary"]:disabled {opacity:.55; cursor:not-allo
 .st-key-brand {min-width:0; overflow:hidden}
 .st-key-brand p {white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
 .st-key-brand code {white-space:nowrap}
+/* narrow screens: the buttons drop to their own row and wrap, instead of running off-screen */
+@media (max-width:800px) {
+  .st-key-topbar:has(.st-key-askai, [class*="st-key-aichip"]), .st-key-topbar > :has(.st-key-actions), .st-key-actions {flex-wrap:wrap; min-width:0}
+  .st-key-topbar > :has(.st-key-actions) {flex-basis:100%}
+}
 [class*="st-key-aichip"] [data-testid="stPopoverButton"] {border-radius:999px; padding:2px 12px; min-height:0; font-size:.85rem}
 html[data-dejavu-theme] [data-testid="stTextInput"] :is([data-baseweb="base-input"], input, button) {background:var(--dj-sunk); color:var(--dj-text)}
 /* key box: one bordered field with the eye inside it, same colours as the rest; no browser autofill blue */

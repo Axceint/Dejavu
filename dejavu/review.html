@@ -27,7 +27,7 @@ const HOST_THEME = /*__THEME__*/null;
   --serif:"Fraunces",Georgia,"Times New Roman",serif;
   --mono:"JetBrains Mono",ui-monospace,"SF Mono","Cascadia Mono",Consolas,monospace;
   /* highlight colours: set from the colour popover (setColors); these are the Coffee defaults */
-  --match:rgba(201,140,70,.18);--verb:rgba(107,142,78,.32);--hot:rgba(192,86,47,.42);--ai:#2f7f86;
+  --match:rgba(201,140,70,.18);--verb:rgba(107,142,78,.32);--hot:rgba(192,86,47,.16);--hot-bar:#c0562f;--ai:#2f7f86;
 }
 :root[data-theme=dark]{
   color-scheme:dark;
@@ -183,7 +183,7 @@ button.chip:hover{border-color:var(--text)}
 .ln .no{width:40px;flex:none;text-align:right;padding-right:12px;color:var(--faint);user-select:none}
 .ln.m{background:var(--match)}
 .ln.v{background:var(--verb)}
-.ln.f{background:var(--hot)}
+.ln.f{background:var(--hot);box-shadow:inset 3px 0 0 var(--hot-bar)}  /* light tint keeps code readable; the bar marks the focus */
 /* lines an Ask AI citation points at: the block and the names it's about pulse together twice, then fade out */
 .ln.cite{--hl:var(--cite);animation:cite 3s ease-in-out forwards}
 .ln.cite mark.kw{--hl:var(--cite-kw);color:inherit;border-radius:3px;animation:cite 3s ease-in-out forwards}
@@ -200,7 +200,7 @@ button.chip:hover{border-color:var(--text)}
 .kw{color:var(--kw)}.str{color:var(--str)}.com{color:var(--com);font-style:italic}.num{color:var(--num)}
 .rn{color:var(--rn);text-decoration:underline dotted;text-underline-offset:3px}
 .hzc{background:var(--copy);color:var(--panel);border-radius:2px;padding:0 1px}
-.legend{display:flex;gap:12px;align-items:center;flex-wrap:nowrap;padding:0 16px 8px;color:var(--muted);font-size:12.5px}
+.legend{display:flex;gap:8px 12px;align-items:center;flex-wrap:wrap;padding:0 16px 8px;color:var(--muted);font-size:12.5px}
 .legend>span{flex:1 1 0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .lg{flex:none;display:inline-flex;gap:14px;align-items:center;flex-wrap:wrap;border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:4px 12px;color:var(--muted)}
 .lg:hover,.lg[aria-expanded=true]{border-color:var(--accent);color:var(--text)}
@@ -226,7 +226,7 @@ dialog td:first-child{width:110px}
 .toast.on{opacity:1;translate:none}
 @media (prefers-reduced-motion:reduce){.toast{transition:none}}
 
-@media (max-width:1060px){.legend{flex-wrap:wrap}.legend>span{display:none}} /* the tip would only show as "Clic…" */
+@media (max-width:1060px){.legend>span{display:none}} /* the tip would only show as "Clic…" */
 @media (max-width:860px){
   .app{grid-template-columns:1fr;grid-template-rows:auto auto minmax(0,1fr);height:auto;min-height:100vh}
   .side{border-right:0;border-bottom:1px solid var(--line)}
@@ -236,6 +236,7 @@ dialog td:first-child{width:110px}
   .code{max-height:420px}
   .facts{grid-template-columns:1fr}
   .note{width:100%}
+  .top,.tiles{flex-wrap:wrap}.top{row-gap:8px}.top .tile{border-left:0;padding:0 16px 0 2px}  /* wrapped tiles: no stray dividers */
 }
 </style>
 </head>
@@ -377,7 +378,7 @@ const PRESETS = {
   Rose: {match: "#e0607e", verb: "#c98c46", hot: "#b8325a", ai: "#2f7f86"},
   Mono: {match: "#8a8a8a", verb: "#5f5f5f", hot: "#3a3a3a", ai: "#2f7f86"},
 };
-const ALPHA = {match: 0.18, verb: 0.32, hot: 0.42};
+const ALPHA = {match: 0.18, verb: 0.32, hot: 0.16};
 let colors = {...PRESETS.Coffee};
 const rgba = (hex, a) => { const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`; };
 function setColors(c, save) {
@@ -385,6 +386,7 @@ function setColors(c, save) {
   for (const [k, v] of Object.entries(c || {})) if (k in colors && /^#[0-9a-f]{6}$/i.test(v)) colors[k] = v; // ignore stale or edited values
   for (const [k, v] of Object.entries(colors)) {
     root.style.setProperty("--" + k, ALPHA[k] ? rgba(v, ALPHA[k]) : v);
+    if (k === "hot") root.style.setProperty("--hot-bar", v);
     const inp = document.querySelector(`#colors [data-c="${k}"]`);
     if (inp) inp.value = v;
   }
