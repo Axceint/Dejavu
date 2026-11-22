@@ -230,12 +230,12 @@ def scan(path, base=None, progress=_quiet):
             # the bigger file, so a tiny boilerplate file can't look "fully contained" in a real solution.
             small = max(min(total[a], total[b]), 0.5 * max(total[a], total[b]))
             score = 0.5 * (inter / union + inter / small)
-            pairs.append({"a": a, "b": b, "score": round(score, 4), "shared": shared})
+            pairs.append({"a": a, "b": b, "score": round(score, 4)})
     progress("compare", todo, todo)
     pairs.sort(key=lambda p: -p["score"])
-    for i, p in enumerate(pairs):
-        shared = p.pop("shared")
-        p["matches"] = _blocks(fps[p["a"]], fps[p["b"]], shared) if i < MATCH_TOP else []
+    for i, p in enumerate(pairs):  # shared sets are rebuilt for the top pairs only: keeping all of them cost ~0.6 GB at 900 files
+        fa, fb = fps[p["a"]], fps[p["b"]]
+        p["matches"] = _blocks(fa, fb, fa.keys() & fb.keys()) if i < MATCH_TOP else []
     flags = {n: f for n, src in files.items() if (f := hidden_chars(src))}
     marks = {n: m for n, src in files.items() if (m := watermarks(src))}
     return {"files": files, "pairs": pairs, "flags": flags, "marks": marks, "seconds": round(time.perf_counter() - start, 3)}

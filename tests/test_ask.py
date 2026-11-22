@@ -63,6 +63,14 @@ assert ask.cite("Nothing to cite [7].", hits) == {"answer": ask.NOT_FOUND, "cita
 os.environ.pop("LLM_API_KEY", None)
 assert ask.available() is False
 
+# a pasted key is "kept for this browser tab only": the server-wide cache must not hold it in plain text
+get, ask.httpx.get = ask.httpx.get, lambda *a, **k: type("R", (), {"status_code": 200})()
+ask.use_key("sk-test-pasted")
+assert ask.available() is True
+assert not any("sk-test-pasted" in str(k) for k in ask._seen), ask._seen
+ask.httpx.get = get
+ask.use_key("")
+
 # a whole scan: every citation is a real file and real lines, and the scan is unchanged (read-only)
 r = scan(Path(__file__).parent / "problems")
 before = json.dumps(r, sort_keys=True, default=str)

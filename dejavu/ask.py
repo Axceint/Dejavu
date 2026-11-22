@@ -2,6 +2,7 @@
 marks, ranks or decides anything. Retrieval is ported from the team03-65 RAG project: BM25 keyword scores and
 vector similarity fused by reciprocal rank, numbered sources, and [n] markers checked against those sources."""
 import contextvars
+import hashlib
 import math
 import os
 import re
@@ -51,7 +52,7 @@ def key():
     return os.getenv("LLM_API_KEY", "") or _session_key.get()
 
 
-_seen = {}  # key -> (checked at, ok)
+_seen = {}  # sha256 of key -> (checked at, ok); hashed so pasted keys don't outlive their browser tab
 
 
 def available():
@@ -59,13 +60,14 @@ def available():
     k = key()
     if not k:
         return False
-    at, ok = _seen.get(k, (-60.0, False))
+    h = hashlib.sha256(k.encode()).hexdigest()
+    at, ok = _seen.get(h, (-60.0, False))
     if time.monotonic() - at > 60:
         try:
             ok = httpx.get(BASE + "models", headers={"Authorization": f"Bearer {k}"}, timeout=3).status_code == 200
         except httpx.HTTPError:
             ok = False
-        _seen[k] = (time.monotonic(), ok)
+        _seen[h] = (time.monotonic(), ok)
     return ok
 
 

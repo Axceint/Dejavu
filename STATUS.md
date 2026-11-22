@@ -27,6 +27,8 @@ result = scan("path/to/folder_or.zip", base=None)  # base: optional starter code
 - Scan: `.venv\Scripts\python -m dejavu scan <folder_or_zip> --top 20 --json out.json [--base starter.py]`
 - Self-test: `.venv\Scripts\python -m tests.test_engine`
 - 300-file timing: `.venv\Scripts\python -m tests.bench`
+- App: `.venv\Scripts\streamlit run app.py`
+- Every CI suite: the `python -m tests.<name>` steps in `.github/workflows/test.yml`
 
 ## Owners
 - Himu: engine + CLI
@@ -35,10 +37,11 @@ result = scan("path/to/folder_or.zip", base=None)  # base: optional starter code
 
 ## Status
 - [x] Setup, parsers verified
-- [x] Engine + self-test (Himu): 300 files in ~2 s; rename/reorder 0.75, loop→recursion 0.55, independent same-task solution 0.04
+- [x] Engine + self-test (Himu): 300 files in ~2 s; rename/reorder 0.79, loop→recursion 0.50, copy moved into a class 0.89, independent same-task solution 0.01
 - [x] Hidden-character flags + starter-code exclusion (`--base`) (Himu)
 - [x] README with comparison to MOSS/JPlag/Dolos (Himu)
-- [ ] UI (Akshit): see HANDOVER.md, task 1
+- [x] UI: Streamlit review screen, offline report, CSV, Ask AI (read-only RAG), AI watermark and AI-style hints
+- [x] Upload guards: friendly error for protected zips, files over 1 MB refused; dependency versions pinned
 - [ ] Hosted link by hour 12
 - [ ] Hour-12 change: TBD (reserve hours 12–17)
 
