@@ -77,6 +77,9 @@ assert "const DATA = {" in iframe.srcdoc and "grid_bfs/ai_rewrite.java" in ifram
 # the unzip/read and scan bars only exist while scanning
 assert not at.get("progress"), [b.proto.text for b in at.get("progress")]
 assert 'id="sideBtn"' in iframe.srcdoc and 'id="maxBtn"' in iframe.srcdoc
+# code look: Bold (B) and a font menu, both wired and remembered; M is the list, Z maximises
+assert '$("#codeBold").onclick = toggleBold' in iframe.srcdoc and '$("#codeFont").onchange' in iframe.srcdoc
+assert "b: toggleBold, m: toggleSide, z:" in iframe.srcdoc and 'pref("font", codeFont)' in iframe.srcdoc
 
 # AI RAG error (e.g. used-up quota): "Use another key" drops the pasted key and brings back the key box
 from dejavu import ask  # noqa: E402  (same module object the app uses)
