@@ -31,6 +31,8 @@ CALL = {"call": "function", "call_expression": "function", "method_invocation": 
 K = 6  # tokens per fingerprint (6 beat 5 on the separation margin once Python type hints and docstrings were dropped)
 MAX_BYTES = 1_000_000  # per file; real submissions are a few KB
 RING = 0.4  # pair score that links files into a copy ring: tests.test_engine keeps loop->recursion copies above 0.4, independent solutions below 0.3
+MAX_TOTAL = 20_000_000  # all files together: parsing costs ~1.5 s per MB, so a tiny zip of 1 MB entries stalls the server
+MAX_FILES = 2_000  # pairs grow with the square: 2,000 files = 2M pairs (~9 s); 5,000 made a 633 MB CSV
 MATCH_TOP = 100  # shortcut: line matches only for the top 100 pairs, raise if the UI shows more
 # Cf = zero-width and bidi ("Trojan Source") controls; Zs/Zl/Zp = any space or line break except a plain space.
 HIDDEN = {"Cf", "Zs", "Zl", "Zp"}
@@ -45,9 +47,19 @@ def _junk(name):  # macOS zip metadata (__MACOSX/, ._file) is binary, not a subm
     return "__MACOSX" in Path(name).parts or Path(name).name.startswith("._")
 
 
-def _check_size(name, size):  # a 4 KB zip can unpack to megabytes; parsing it would stall the shared server
+def _check_size(name, size, total=0):  # a 4 KB zip can unpack to megabytes; parsing it would stall the shared server
     if size > MAX_BYTES:
         raise ValueError(f"{name} is over {MAX_BYTES // 1_000_000} MB, too big for a hand-written submission")
+    if total > MAX_TOTAL:
+        raise ValueError(f"the files add up to over {MAX_TOTAL // 1_000_000} MB, too much for one scan")
+
+
+def _check_count(every, names):  # every: all file names inside, for saying what was found instead
+    if not names:  # e.g. a zip of per-student zips, or .c files: a silent "no copies" would be wrong
+        found = sorted({s for n in every if (s := Path(n).suffix.lower()) and not _junk(n)})
+        raise ValueError("no .py, .java or .cpp files inside" + (f" (found {', '.join(found[:6])})" if found else ""))
+    if len(names) > MAX_FILES:
+        raise ValueError(f"{len(names):,} source files; one scan takes up to {MAX_FILES:,}")
 
 
 def _quiet(stage, done, total):
@@ -56,27 +68,33 @@ def _quiet(stage, done, total):
 
 def load(path, progress=_quiet):
     """progress(stage, done, total) is called with stage "read" after each file, for a progress bar."""
-    path, files = Path(path), {}
+    path, files, total = Path(path), {}, 0
     if not path.exists():
         raise FileNotFoundError(path)
     if path.suffix.lower() == ".zip":
         with zipfile.ZipFile(path) as z:
-            names = [n for n in z.namelist() if Path(n).suffix.lower() in LANG and not _junk(n)]
+            every = z.namelist()
+            names = [n for n in every if Path(n).suffix.lower() in LANG and not _junk(n)]
+            _check_count(every, names)
             for i, n in enumerate(names, 1):
-                with z.open(n) as f:
-                    data = f.read(MAX_BYTES + 1)  # bounded read: the zip header's size can lie
-                _check_size(n, len(data))
+                try:
+                    with z.open(n) as f:
+                        data = f.read(MAX_BYTES + 1)  # bounded read: the zip header's size can lie
+                except (zlib.error, EOFError) as e:  # damaged compressed data inside an otherwise valid zip
+                    raise ValueError(f"{n} is damaged inside the zip ({e})") from e
+                total += len(data)
+                _check_size(n, len(data), total)
                 files[n] = data.decode("utf-8", "replace")
                 progress("read", i, len(names))
     else:
-        paths = [p for p in sorted(path.rglob("*"))
-                 if p.is_file() and p.suffix.lower() in LANG and not _junk(p.relative_to(path))]
+        every = [p for p in sorted(path.rglob("*")) if p.is_file()]
+        paths = [p for p in every if p.suffix.lower() in LANG and not _junk(p.relative_to(path))]
+        _check_count([p.relative_to(path).as_posix() for p in every], paths)
         for i, p in enumerate(paths, 1):
-            _check_size(p.name, p.stat().st_size)
+            total += p.stat().st_size
+            _check_size(p.name, p.stat().st_size, total)
             files[p.relative_to(path).as_posix()] = p.read_text("utf-8", "replace")
             progress("read", i, len(paths))
-    if not files:
-        progress("read", 0, 0)
     return files
 
 
@@ -203,9 +221,11 @@ def scan(path, base=None, progress=_quiet):
         progress("parse", i, len(files))
     if base:
         bp = Path(base)
-        bfiles = {bp.name: bp.read_text("utf-8", "replace")} if bp.suffix.lower() in LANG else load(bp)
-        if not bfiles:
-            raise ValueError(f"no .py/.cpp/.java starter code found in {base}")
+        if bp.suffix.lower() in LANG:
+            _check_size(bp.name, bp.stat().st_size)
+            bfiles = {bp.name: bp.read_text("utf-8", "replace")}
+        else:
+            bfiles = load(bp)  # raises when it holds no code
         skip = {h for n, src in bfiles.items() for h in fp(n, src)}
         fps = {n: {h: v for h, v in f.items() if h not in skip} for n, f in fps.items()}
     pairs = []
