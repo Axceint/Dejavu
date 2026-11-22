@@ -5,6 +5,7 @@ import time
 import zipfile
 from pathlib import Path
 
+from dejavu import engine
 from dejavu.engine import hidden_chars, scan
 
 ORIG = (Path(__file__).parent / "fixtures" / "orig.py").read_text()
@@ -115,6 +116,46 @@ with tempfile.TemporaryDirectory() as d:  # a tiny zip can unpack to a huge file
             raise AssertionError(f"oversized file in {p.name} must raise")
         except ValueError as e:
             assert "big.py" in str(e), e
+
+def refused(path, why, base=None, want=""):
+    try:
+        scan(path, base)
+    except ValueError as e:
+        assert want in str(e), e
+        return
+    raise AssertionError(f"{why} must raise ValueError")
+
+
+with tempfile.TemporaryDirectory() as d:  # inputs that would stall the shared server or silently find nothing
+    d = Path(d)
+    def zipped(name, entries):
+        with zipfile.ZipFile(d / name, "w", zipfile.ZIP_DEFLATED) as z:
+            for n, s in entries:
+                z.writestr(n, s)
+        return d / name
+
+    # many tiny files: pairs grow with the square of the count
+    refused(zipped("many.zip", [(f"s{i}.py", "x = 1\n") for i in range(engine.MAX_FILES + 1)]), "too many files", want="files")
+    # many files each under the per-file cap still add up
+    refused(zipped("total.zip", [(f"s{i}.py", "x = 1\n" * 150_000) for i in range(engine.MAX_TOTAL // 900_000 + 1)]),
+            "too many bytes in total", want="MB")
+    # a single-file starter skipped the per-file cap
+    (d / "starter.py").write_text("x = 1\n" * 200_000)
+    refused(zipped("ok.zip", [("a.py", ORIG), ("b.py", ORIG)]), "oversized starter", base=d / "starter.py", want="starter.py")
+    # an LMS export (zip of per-student zips) or the wrong language used to show a clean "no copies" result
+    inner = zipped("inner.zip", [("main.py", ORIG)]).read_bytes()
+    refused(zipped("nested.zip", [("s1.zip", inner), ("s2.zip", inner)]), "zip of zips", want=".zip")
+    refused(zipped("c.zip", [("a.c", "int main(){}"), ("b.c", "int main(){}")]), "no supported files", want=".c")
+    # damaged compressed data inside an entry raised zlib.error, which the app didn't catch
+    p = d / "damaged.zip"
+    with zipfile.ZipFile(p, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("a.py", ORIG * 50)
+        z.writestr("b.py", ORIG * 50)
+    b = bytearray(p.read_bytes())
+    start = 30 + int.from_bytes(b[26:28], "little")  # first entry's data, after its local header
+    b[start + 5:start + 40] = bytes(x ^ 0x5A for x in b[start + 5:start + 40])
+    p.write_bytes(b)
+    refused(p, "damaged entry", want="a.py")
 
 try:
     scan("does/not/exist")
