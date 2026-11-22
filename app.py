@@ -90,7 +90,9 @@ html [data-testid="stBaseButton-primary"]:disabled {opacity:.55; cursor:not-allo
 /* Ask AI: a button in the top bar; it opens as a panel under the bar, so closed it covers nothing */
 .st-key-actions > :has(.st-key-askai) {flex:0 0 fit-content; width:fit-content}  /* its fragment wrapper would otherwise stretch */
 /* start page: a centred column instead of the full width; the demo gets its own accent block */
-.block-container:has(.st-key-intro) {max-width:1120px; margin:0 auto; padding-top:24px}
+.block-container:has(.st-key-intro):not(:has(.st-key-review)) {max-width:1120px; margin:0 auto; padding-top:24px}
+/* the old start page lingers (faded) until the run after a scan ends; hide it once the review is drawn */
+.block-container:has(.st-key-review) :is(.st-key-intro, .st-key-how) {display:none}
 .st-key-how {position:sticky; top:16px; align-self:flex-start}
 @media (max-width:900px) {.st-key-how {position:static}}
 .st-key-demo {background:color-mix(in srgb, var(--dj-accent, #a0522d) 12%, transparent);
