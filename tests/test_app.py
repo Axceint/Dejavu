@@ -95,4 +95,11 @@ rows = list(csv.reader(io.StringIO(all_pairs_csv({"pairs": [{"a": n, "b": "ok.py
 assert [r[2] for r in rows[1:]] == ["'" + n for n in names], rows
 assert rows[1][3] == "ok.py"
 assert [r[4] for r in rows[1:]] == ["1", "1", "", "", "", ""], "ring number only when both files share a ring"
+
+# The review screen's own CSV export (JS cell()): a lone \r in a file name or note must stay inside its quoted cell.
+import subprocess  # noqa: E402
+cell = re.search(r"const cell = .*", (Path(__file__).parent.parent / "dejavu" / "review.html").read_text("utf-8"))[0]
+line = subprocess.run(["node", "-e", cell + ' process.stdout.write(["a\\rb.py", "x,y", "=1"].map(cell).join(","))'],
+                      capture_output=True, check=True).stdout.decode()  # bytes: text mode would turn \r into \n
+assert next(csv.reader(io.StringIO(line, newline=""))) == ["a\rb.py", "x,y", "'=1"], repr(line)
 print("APP PASS")
