@@ -157,6 +157,17 @@ with tempfile.TemporaryDirectory() as d:  # inputs that would stall the shared s
     p.write_bytes(b)
     refused(p, "damaged entry", want="a.py")
 
+with tempfile.TemporaryDirectory() as d:  # LMS layout: one folder per student, some students hand in several files
+    sub = Path(d, "hw1.zip")
+    with zipfile.ZipFile(sub, "w") as z:  # one wrapper folder around all students, as zips usually have
+        for f in ("s1/main.py", "s1/util.py", "s2/main.py", "loose.py"):
+            z.writestr("hw1/" + f, ORIG)
+    assert pair(scan(sub), "hw1/s1/main.py", "hw1/s1/util.py") > 0.99, "off by default: folders can be assignments (demo)"
+    r = scan(sub, by_folder=True)
+    assert pair(r, "hw1/s1/main.py", "hw1/s1/util.py") == 0, "one student's own files are not a copy"
+    assert pair(r, "hw1/s1/util.py", "hw1/s2/main.py") > 0.99, "across students still counts"
+    assert pair(r, "hw1/loose.py", "hw1/s1/main.py") > 0.99, "a file outside any student folder is its own submission"
+
 try:
     scan("does/not/exist")
     raise AssertionError("missing path must raise")
