@@ -58,10 +58,10 @@ def report(text, where, token=None):
     Raises ValueError with a fixed message that is safe to show (never the server's reply)."""
     token = token if token is not None else os.getenv("GH_TELEMETRY_TOKEN", "")
     text = text.strip()[:MAX_CHARS]
-    if not token:
-        raise ValueError("Reporting isn't set up on this copy of the app.")
     if not text or where not in WHERE:
         raise ValueError("Write what happened first.")
+    if not token:
+        raise ValueError("Reporting isn't set up on this copy of the app.")
     # a fence longer than any backtick run in the text: links, images and @mentions show as plain text
     fence = "`" * max(3, 1 + max(map(len, re.findall("`+", text)), default=0))
     issue = {"title": f"App report ({where}): {text.splitlines()[0][:60]}",

@@ -48,6 +48,11 @@ for bad in [("x", "Other", ""), ("  \n ", "Other", "t"), ("x", "Not a place", "t
     except ValueError:
         pass
 assert not calls, "nothing is sent without a token, text and a known place"
+try:
+    telemetry.report(" ", "Other", "")
+    raise AssertionError("empty report must raise")
+except ValueError as e:
+    assert "Write what happened" in str(e), "an empty report asks for text before anything else"
 fail = True
 try:
     telemetry.report("x", "Other", token="t")

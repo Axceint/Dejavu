@@ -1,5 +1,6 @@
-# Drafts a fix PR for an issue. Starts when the app files a report (the body begins with telemetry.MARK and the
-# author is the app's token, a trusted account) or when a maintainer adds the "autofix" label to any issue.
+# Drafts a fix PR for an issue. When the app files a report (the body begins with telemetry.MARK and the author is
+# the app's token, a trusted account), the triage job sorts it with Gemini (scripts/triage.py): "small" goes on to
+# the fix job, "needs-review" waits for a person. A maintainer can also add the "autofix" label to any issue.
 # Issue text is untrusted, so Claude can only read the repo and edit app code, holding a read-only token.
 # The last step, which Claude can't touch, copies app.py, dejavu/ and tests/ onto a clean checkout of the same
 # commit and opens a draft PR with ADAPT_TOKEN. CI tests it; a person reviews and merges.
@@ -11,11 +12,43 @@ permissions:
   contents: read
   issues: read
 jobs:
-  fix:
+  triage:  # app reports only; a "small" verdict starts the fix job below in this same run
     if: >-
-      (github.event.action == 'labeled' && github.event.label.name == 'autofix') ||
-      (github.event.action == 'opened' && startsWith(github.event.issue.body, '<!-- dejavu:app-report -->') &&
-       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.issue.author_association))
+      github.event.action == 'opened' && startsWith(github.event.issue.body, '<!-- dejavu:app-report -->') &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.issue.author_association)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write  # one label and one comment
+    outputs:
+      kind: ${{ steps.sort.outputs.kind }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - id: sort
+        env:
+          LLM_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python -m scripts.triage >> "$GITHUB_OUTPUT"
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          KIND: ${{ steps.sort.outputs.kind }}
+          N: ${{ github.event.issue.number }}
+        run: |
+          gh issue edit "$N" -R "$GITHUB_REPOSITORY" --add-label "$KIND"
+          if [ "$KIND" = small ]; then msg="Sorted as a small fix: an AI is drafting a fix PR. A person checks it before it ships."
+          else msg="Sorted as needs review: a person will look at it. Add the autofix label to hand it to the AI anyway."; fi
+          gh issue comment "$N" -R "$GITHUB_REPOSITORY" --body "$msg"
+  fix:
+    needs: triage
+    if: >-
+      !cancelled() && ((github.event.action == 'labeled' && github.event.label.name == 'autofix') ||
+      needs.triage.outputs.kind == 'small')
     concurrency: autofix-${{ github.event.issue.number }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
