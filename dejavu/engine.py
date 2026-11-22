@@ -62,6 +62,13 @@ def _check_count(every, names):  # every: all file names inside, for saying what
         raise ValueError(f"{len(names):,} source files; one scan takes up to {MAX_FILES:,}")
 
 
+def _decode(data):
+    """PowerShell 5's `>` and Notepad's "Unicode" write UTF-16 with a BOM; read as UTF-8 it matched nothing.
+    Line endings become \\n as read_text did for folders; zipped CRLF files kept \\r and hid the ``` watermark."""
+    text = data.decode("utf-16" if data[:2] in (b"\xff\xfe", b"\xfe\xff") else "utf-8", "replace")
+    return text.replace("\r\n", "\n").replace("\r", "\n")
+
+
 def _quiet(stage, done, total):
     pass
 
@@ -84,7 +91,7 @@ def load(path, progress=_quiet):
                     raise ValueError(f"{n} is damaged inside the zip ({e})") from e
                 total += len(data)
                 _check_size(n, len(data), total)
-                files[n] = data.decode("utf-8", "replace")
+                files[n] = _decode(data)
                 progress("read", i, len(names))
     else:
         every = [p for p in sorted(path.rglob("*")) if p.is_file()]
@@ -93,7 +100,7 @@ def load(path, progress=_quiet):
         for i, p in enumerate(paths, 1):
             total += p.stat().st_size
             _check_size(p.name, p.stat().st_size, total)
-            files[p.relative_to(path).as_posix()] = p.read_text("utf-8", "replace")
+            files[p.relative_to(path).as_posix()] = _decode(p.read_bytes())
             progress("read", i, len(paths))
     return files
 
@@ -235,7 +242,7 @@ def scan(path, base=None, progress=_quiet, by_folder=False):
         bp = Path(base)
         if bp.suffix.lower() in LANG:
             _check_size(bp.name, bp.stat().st_size)
-            bfiles = {bp.name: bp.read_text("utf-8", "replace")}
+            bfiles = {bp.name: _decode(bp.read_bytes())}
         else:
             bfiles = load(bp)  # raises when it holds no code
         skip = {h for n, src in bfiles.items() for h in fp(n, src)}
