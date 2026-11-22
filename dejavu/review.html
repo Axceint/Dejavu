@@ -734,7 +734,7 @@ function toast(msg) {
   tt = setTimeout(() => t.classList.remove("on"), 1600);
 }
 // Spreadsheet apps run cells starting with = + - @ as formulas; file names come from students.
-const cell = (v) => { let s = String(v ?? ""); if (/^[=+\-@\t\r]/.test(s)) s = "'" + s; return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+const cell = (v) => { let s = String(v ?? ""); if (/^[=+\-@\t\r]/.test(s)) s = "'" + s; return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
 function exportCsv() {
   const rows = [["rank", "score", "band", "file_a", "file_b", "decision", "note"]].concat(P.map((p) => {
     const d = dec[pk(p)] || {};
