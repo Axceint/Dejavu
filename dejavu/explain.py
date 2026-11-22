@@ -1,5 +1,4 @@
 """Human-readable evidence for one pair from scan(): why it ranks where it does. Hints for a reviewer, not proof."""
-from bisect import bisect_left
 from collections import Counter
 from difflib import SequenceMatcher
 from pathlib import Path
@@ -81,13 +80,8 @@ def evidence(result, pair, ctx=None):
     a, b, m = pair["a"], pair["b"], pair["matches"]
     sa, sb = result["files"][a], result["files"][b]
     ctx = ctx or context(result)
-    common, scores = ctx["common"], ctx["scores"]
     return {
-        "blocks": sorted(({"a": x, "b": y, "lines": max(x[1] - x[0], y[1] - y[0]) + 1} for x, y in m),
-                         key=lambda d: -d["lines"]),
         "coverage": (coverage(sa, [x for x, _ in m]), coverage(sb, [y for _, y in m])),
         "renames": renames(sa, sb, LANG[Path(a).suffix.lower()], m) if m else [],
-        "verbatim": verbatim(sa, sb, common),
-        # share of pairs in this batch that score lower: 0.97 means this pair beats 97% of the others
-        "beats": bisect_left(scores, pair["score"]) / max(len(scores) - 1, 1),
+        "verbatim": verbatim(sa, sb, ctx["common"]),
     }

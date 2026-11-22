@@ -1,5 +1,6 @@
-tree-sitter
-tree-sitter-language-pack
-streamlit>=1.67
-httpx
-numpy
+# pinned: grammar releases change parse trees (scores) and Streamlit releases change the DOM app.py styles
+tree-sitter==0.26.1
+tree-sitter-language-pack==1.25.2
+streamlit==1.67.0
+httpx==0.28.1
+numpy==2.5.5

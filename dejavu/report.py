@@ -29,6 +29,7 @@ def payload(r, limit=LIMIT, progress=_quiet):
             d["verb"] = e["verbatim"]
             done += 1
             progress("explain", done, steps)
+        # share of pairs in this batch that score lower: 0.97 means this pair beats 97% of the others
         d["beats"] = round(bisect_left(ctx["scores"], p["score"]) / max(len(ctx["scores"]) - 1, 1), 3)
         out.append(d)
     files = []
