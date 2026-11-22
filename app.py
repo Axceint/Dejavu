@@ -147,8 +147,11 @@ html[data-dejavu-theme] [data-testid="stTextInput"] :is([data-baseweb="base-inpu
 [data-testid="stPopoverBody"] [data-testid="stTextInputRootElement"] button:hover {color:var(--dj-accent)}
 [data-testid="stPopoverBody"] input:-webkit-autofill {-webkit-box-shadow:0 0 0 40px var(--dj-sunk) inset; -webkit-text-fill-color:var(--dj-text)}
 /* Report: bug icon only. The label stays for screen readers, and the dropdown arrow is hidden */
-.st-key-reportbtn [data-testid="stPopoverButton"] [data-testid="stMarkdownContainer"] {position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%)}
-.st-key-reportbtn [data-testid="stPopoverButton"] > div > div:not(:first-child) {display:none}
+[class*="st-key-reportbtn"] [data-testid="stPopoverButton"] [data-testid="stMarkdownContainer"] {position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%)}
+[class*="st-key-reportbtn"] [data-testid="stPopoverButton"] > div > div:not(:first-child) {display:none}
+[class*="st-key-reportbtn"] [data-testid="stPopoverButton"] {padding:0; width:40px; justify-content:center}
+[class*="st-key-reportbtn"] [data-testid="stPopoverButton"] > div {margin:0}  /* Streamlit's -5px pull for the hidden arrow pushed the icon off centre */
+.st-key-reportbtn_landing [data-testid="stPopoverButton"] {width:32px; height:32px; min-height:32px; border-radius:6px}  /* same as the theme toggle */
 /* report form: Streamlit paints the text box and the Where menu in the OS theme; use the page's */
 html[data-dejavu-theme] :is([data-testid="stTextAreaRootElement"], [data-testid="stSelectbox"] .react-aria-ComboBox > div) {
   background:var(--dj-sunk); color:var(--dj-text); border-color:var(--dj-line)}
@@ -429,9 +432,9 @@ def ai_chip(slot):
     return False
 
 
-def report_menu(where_to):
+def report_menu(where_to, key="reportbtn"):
     """Report a problem without leaving the app. The issue it files starts the autofix workflow (a draft fix PR)."""
-    with where_to.popover("Report an issue", icon=":material/bug_report:", help="Report an issue", key="reportbtn"):
+    with where_to.popover("Report an issue", icon=":material/bug_report:", help="Report an issue", key=key):
         with st.form("report", border=False, clear_on_submit=True):
             what = st.text_area("What happened?", max_chars=telemetry.MAX_CHARS, key="report_text",
                                 placeholder="What you did, what you expected, what you saw")
@@ -477,7 +480,7 @@ else:
     # the review screen has its own toggle; this one covers the landing page
     with bar.container(key="theme", width="content"):
         st.iframe(theme_toggle("light"), width=32, height=32)
-    report_menu(bar)
+    report_menu(bar, "reportbtn_landing")
 
 if st.session_state.get("err"):
     st.error(st.session_state.err)

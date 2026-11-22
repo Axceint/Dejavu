@@ -42,7 +42,10 @@ button:active{transform:translateY(1px)}
     btn.title = btn.getAttribute("aria-label");
     if (save) { try { localStorage.setItem("dejavu:theme", t); } catch (e) { /* not saved: still applies now */ } }
     // the host page's CSS repaints itself from this attribute (see app.py)
-    try { window.parent.document.documentElement.dataset.dejavuTheme = t; } catch (e) { /* other origin: host keeps its theme */ }
+    // also saved as Streamlit's own theme, so the next load paints in it from the first frame (no flash)
+    // shortcut: Streamlit 1.67's internal storage key; if an update renames it, the flash returns until this is updated
+    try { const h = window.parent; h.document.documentElement.dataset.dejavuTheme = t;
+      h.localStorage.setItem(`stActiveTheme-${h.location.pathname}-v2`, JSON.stringify(t === "dark" ? "Dark" : "Light")); } catch (e) { /* other origin: host keeps its theme */ }
   }
   setTheme(root.dataset.theme, false);
   btn.onclick = () => {  // one crossfade for the whole window, as in review.html
