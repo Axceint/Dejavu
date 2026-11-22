@@ -103,6 +103,19 @@ with tempfile.TemporaryDirectory() as d:
     except ValueError:
         pass
 
+with tempfile.TemporaryDirectory() as d:  # a tiny zip can unpack to a huge file: refuse it, don't parse it
+    big = "x = y + 1\n" * 200_000
+    with zipfile.ZipFile(Path(d, "bomb.zip"), "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("big.py", big)
+    Path(d, "dir").mkdir()
+    Path(d, "dir", "big.py").write_text(big)
+    for p in (Path(d, "bomb.zip"), Path(d, "dir")):
+        try:
+            scan(p)
+            raise AssertionError(f"oversized file in {p.name} must raise")
+        except ValueError as e:
+            assert "big.py" in str(e), e
+
 try:
     scan("does/not/exist")
     raise AssertionError("missing path must raise")

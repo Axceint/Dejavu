@@ -216,7 +216,8 @@ def run(job, area):
             data = payload(r, progress=tick)
             # the whole wait (unzip, scan and evidence), not just scan()'s comparison step
             data["seconds"] = round(time.perf_counter() - t["start"], 3)
-    except (FileNotFoundError, ValueError, zipfile.BadZipFile) as e:
+    # RuntimeError: password-protected zip; NotImplementedError: unsupported compression (Deflate64)
+    except (FileNotFoundError, ValueError, zipfile.BadZipFile, RuntimeError, NotImplementedError) as e:
         st.session_state.err = f"Couldn't scan {job['name']}: {e}"
         return
     # every file goes to Ask AI (payload() keeps only the top pairs' files); a new scan drops the old index and chat

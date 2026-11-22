@@ -29,6 +29,7 @@ DROP_LEAF = {"for", "while", "do", "{", "}", ";"}
 FUNC = {"function_definition", "method_declaration", "constructor_declaration"}
 CALL = {"call": "function", "call_expression": "function", "method_invocation": "name"}
 K = 6  # tokens per fingerprint (6 beat 5 on the separation margin once Python type hints and docstrings were dropped)
+MAX_BYTES = 1_000_000  # per file; real submissions are a few KB
 MATCH_TOP = 100  # shortcut: line matches only for the top 100 pairs, raise if the UI shows more
 # Cf = zero-width and bidi ("Trojan Source") controls; Zs/Zl/Zp = any space or line break except a plain space.
 HIDDEN = {"Cf", "Zs", "Zl", "Zp"}
@@ -41,6 +42,11 @@ WORD = re.compile(r"[^\W\d_]+")  # runs of letters
 
 def _junk(name):  # macOS zip metadata (__MACOSX/, ._file) is binary, not a submission
     return "__MACOSX" in Path(name).parts or Path(name).name.startswith("._")
+
+
+def _check_size(name, size):  # a 4 KB zip can unpack to megabytes; parsing it would stall the shared server
+    if size > MAX_BYTES:
+        raise ValueError(f"{name} is over {MAX_BYTES // 1_000_000} MB, too big for a hand-written submission")
 
 
 def _quiet(stage, done, total):
@@ -56,12 +62,16 @@ def load(path, progress=_quiet):
         with zipfile.ZipFile(path) as z:
             names = [n for n in z.namelist() if Path(n).suffix.lower() in LANG and not _junk(n)]
             for i, n in enumerate(names, 1):
-                files[n] = z.read(n).decode("utf-8", "replace")
+                with z.open(n) as f:
+                    data = f.read(MAX_BYTES + 1)  # bounded read: the zip header's size can lie
+                _check_size(n, len(data))
+                files[n] = data.decode("utf-8", "replace")
                 progress("read", i, len(names))
     else:
         paths = [p for p in sorted(path.rglob("*"))
                  if p.is_file() and p.suffix.lower() in LANG and not _junk(p.relative_to(path))]
         for i, p in enumerate(paths, 1):
+            _check_size(p.name, p.stat().st_size)
             files[p.relative_to(path).as_posix()] = p.read_text("utf-8", "replace")
             progress("read", i, len(paths))
     if not files:
