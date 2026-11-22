@@ -71,6 +71,10 @@ html[data-dejavu-theme] :is([data-testid="stMarkdownContainer"], [data-testid="s
 /* error boxes follow the OS theme like the rest of Streamlit; repaint them so their text stays readable */
 html[data-dejavu-theme] [data-testid="stAlertContainer"]:has([data-testid="stAlertContentError"]) {
   background:color-mix(in srgb, var(--dj-bad) 12%, var(--dj-panel)); border:1px solid color-mix(in srgb, var(--dj-bad) 40%, transparent)}
+/* checkboxes too: the box (label's first div) is painted in the OS theme */
+html[data-dejavu-theme] [data-testid="stCheckbox"] label > div:first-of-type {background:var(--dj-panel); border-color:var(--dj-line)}
+html[data-dejavu-theme] [data-testid="stCheckbox"] label:has(input:checked) > div:first-of-type {background:var(--dj-accent); border-color:var(--dj-accent)}
+html[data-dejavu-theme] [data-testid="stCheckbox"] label > div:first-of-type polyline {stroke:var(--dj-on-accent)}
 html[data-dejavu-theme] [data-testid="stMarkdownContainer"] code {background:var(--dj-sunk); color:var(--dj-muted)}
 html[data-dejavu-theme] [data-testid="stFileUploaderDropzone"] {background:var(--dj-sunk); color:var(--dj-text); border-color:var(--dj-line)}
 html[data-dejavu-theme] [data-testid="stFileUploaderDropzoneInstructions"] * {color:var(--dj-muted)}
