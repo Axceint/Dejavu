@@ -110,7 +110,7 @@ kbd{font:11px/1 var(--mono);padding:2px 4px;border:1px solid var(--line2);border
 .filters option:is(:hover,:focus-visible){background:var(--sunk)}
 .filters select::picker-icon{transition:rotate var(--fast)}
 .filters select:open::picker-icon{rotate:180deg}
-@media (prefers-reduced-motion:reduce){.spin svg,body::after{animation:none}.pop,dialog,dialog::backdrop,.app::after,.why::details-content,.seg::after{transition:none}}
+@media (prefers-reduced-motion:reduce){.spin svg,body::after{animation:none}.pop,dialog,dialog::backdrop,.app::after,.legend,.panes,.why,.why::details-content,.seg::after{transition:none}}
 @media (prefers-reduced-motion:reduce){.filters select::picker(select),.filters select::picker-icon{transition:none}}
 
 .side{display:flex;flex-direction:column;min-height:0;overflow:hidden;transition:visibility var(--fast);border-right:1px solid var(--line);background:var(--panel)}
@@ -187,10 +187,15 @@ button.chip:hover{border-color:var(--text)}
 .ln.m{background:var(--match)}
 .ln.v{background:var(--verb)}
 .ln.f{background:var(--hot);box-shadow:inset 3px 0 0 var(--hot-bar)}  /* light tint keeps code readable; the bar marks the focus */
-/* Focus: the pointer on the comparison (toolbar and code) shades the rest of the page like the popup dim; the Focus toggle turns it off */
+/* Focus: the pointer on the comparison (toolbar and code), the open Why panel or the pair list shades the rest of the page like the popup dim;
+   the Focus toggle turns it off. The lifted part drops back only after the dim has faded, so it never flashes dark. */
 .app::after{content:"";position:fixed;inset:0;z-index:19;background:rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity var(--fast) ease-out}
-body.spot:not(:has(#colors:not([hidden]),#help[open])) .app::after{opacity:1}
-body.spot:not(:has(#colors:not([hidden]),#help[open])) :is(.legend,.panes){position:relative;z-index:20}
+body[data-spot]:not(:has(#colors:not([hidden]),#help[open])) .app::after{opacity:1}
+:is(.legend,.panes,.why,.side){position:relative;z-index:0}
+/* the delay is only for the last fade-out: moving straight to another part drops the old one at once */
+body:not([data-spot]) :is(.legend,.panes,.why){transition:z-index 0s var(--fast)}
+body:not([data-spot]) .side{transition:visibility var(--fast),z-index 0s var(--fast)}
+body[data-spot=cmp]:not(:has(#colors:not([hidden]),#help[open])) :is(.legend,.panes),body[data-spot=why]:not(:has(#colors:not([hidden]),#help[open])) .why,body[data-spot=side]:not(:has(#colors:not([hidden]),#help[open])) .side{z-index:20;transition:none}
 /* lines an Ask AI citation points at: the block and the names it's about pulse together twice, then fade out */
 .ln.cite{--hl:var(--cite);animation:cite 3s ease-in-out forwards}
 .ln.cite mark.kw{--hl:var(--cite-kw);color:inherit;border-radius:3px;animation:cite 3s ease-in-out forwards}
@@ -435,11 +440,15 @@ function setMax(on) {
 setMax(false); // a rerun of the host reloads this page: start normal
 // Help and Colours dim the host page too (see app.py); a click there closes them
 function hostDim() {  // from the real state, so a late close event can't undo a newer open
-  const on = $("#help").open || !$("#colors").hidden || document.body.classList.contains("spot");
+  const on = $("#help").open || !$("#colors").hidden || "spot" in document.body.dataset;
   try { if (window.parent !== window) { const h = window.parent.document.documentElement; if (on) h.dataset.dejavuDim = ""; else delete h.dataset.dejavuDim; } } catch (e) { /* other origin: only this page dims */ }
 }
 hostDim();
+// a double or triple click selects text only in the code panes and fields; press-and-drag still selects anywhere
+const noMultiSelect = (e) => { if (e.detail > 1 && !e.target.closest(".code,input,textarea,select,[contenteditable]")) e.preventDefault(); };
+document.addEventListener("mousedown", noMultiSelect);
 try {
+  if (window.parent !== window) { window.parent.document.addEventListener("mousedown", noMultiSelect); addEventListener("pagehide", () => window.parent.document.removeEventListener("mousedown", noMultiSelect)); }
   const closePops = () => { if ($("#help").open) $("#help").close(); if (!$("#colors").hidden) closeColors(); };
   if (window.parent !== window) { window.parent.document.addEventListener("pointerdown", closePops); addEventListener("pagehide", () => window.parent.document.removeEventListener("pointerdown", closePops)); }
 } catch (e) { /* other origin */ }
@@ -729,10 +738,13 @@ function mapLine(s, n) {
   const [x0, y0] = pts[k], [x1, y1] = pts[k + 1];
   return x1 === x0 ? y0 : y0 + (n - x0) * (y1 - y0) / (x1 - x0);
 }
-function setSpot(on) {  // Focus: shade all but the comparison, host top bar included (hostDim)
-  on = on && S.focus && matchMedia("(hover: hover)").matches;
-  if (document.body.classList.contains("spot") === on) return;
-  document.body.classList.toggle("spot", on);
+let spotT;
+function setSpot(r) {  // Focus: shade all but the hovered part ("cmp", "why" or "side", "" for none), host top bar included (hostDim)
+  if (!S.focus || !matchMedia("(hover: hover)").matches) r = "";
+  clearTimeout(spotT);
+  if (!r && "spot" in document.body.dataset) { spotT = setTimeout(() => { delete document.body.dataset.spot; hostDim(); }, 100); return; }  // crossing the gap between two parts keeps the dim
+  if ((document.body.dataset.spot || "") === r) return;
+  if (r) document.body.dataset.spot = r; else delete document.body.dataset.spot;
   hostDim();
 }
 function setSync(on) {
@@ -759,10 +771,11 @@ function wireDetail(p, byLen) {
   main.querySelectorAll("[data-va]").forEach((el) => { el.onclick = () => { mark([]); align(+el.dataset.va, +el.dataset.vb); }; });
   $("#legendBtn").onclick = openColors;
   $("#syncBtn").onclick = () => setSync(!S.sync);
-  $("#focusBtn").onclick = (e) => { S.focus = !S.focus; pref("focus", S.focus ? "on" : "off"); e.currentTarget.setAttribute("aria-pressed", S.focus); setSpot(S.focus); };
-  main.onmouseover = (e) => setSpot(!!e.target.closest(".legend,.panes"));
-  main.onmouseleave = () => setSpot(false);
-  main.querySelector(".why").ontoggle = (e) => pref("why", e.target.open ? "open" : "closed");
+  $("#focusBtn").onclick = (e) => { S.focus = !S.focus; pref("focus", S.focus ? "on" : "off"); e.currentTarget.setAttribute("aria-pressed", S.focus); setSpot(S.focus ? "cmp" : ""); };
+  const spotOf = (el) => el.closest(".legend,.panes") ? "cmp" : el.closest(".why[open]") ? "why" : el.closest(".side") ? "side" : "";
+  $("#app").onmouseover = (e) => setSpot(spotOf(e.target));
+  $("#app").onmouseleave = () => setSpot("");
+  main.querySelector(".why").ontoggle = (e) => { pref("why", e.target.open ? "open" : "closed"); if (e.target.matches(":hover")) setSpot(spotOf(e.target)); };
   main.querySelectorAll("[data-ai]").forEach((el) => { el.onclick = () => showLine(el.dataset.ai, +el.dataset.line); });
   ["A", "B"].forEach((s) => {
     const c = $("#code" + s), o = s === "A" ? "B" : "A";

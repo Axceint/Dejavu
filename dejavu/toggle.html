@@ -48,6 +48,9 @@ button:active{transform:translateY(1px)}
       h.localStorage.setItem(`stActiveTheme-${h.location.pathname}-v2`, JSON.stringify(t === "dark" ? "Dark" : "Light")); } catch (e) { /* other origin: host keeps its theme */ }
   }
   setTheme(root.dataset.theme, false);
+  // the landing page: a double or triple click selects nothing outside fields (review.html does this on the review screen)
+  const noMultiSelect = (e) => { if (e.detail > 1 && !e.target.closest("input,textarea,select,[contenteditable]")) e.preventDefault(); };
+  try { const d = window.parent.document; d.addEventListener("mousedown", noMultiSelect); addEventListener("pagehide", () => d.removeEventListener("mousedown", noMultiSelect)); } catch (e) { /* other origin */ }
   btn.onclick = () => {  // one crossfade for the whole window, as in review.html
     const apply = () => {
       setTheme(root.dataset.theme === "dark" ? "light" : "dark", true);
