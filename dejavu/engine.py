@@ -131,7 +131,7 @@ def _py_noise(node):
 
 def tokens(src, lang):
     """Normalized (token, line) stream. Loops and self-recursive calls both emit LOOP."""
-    out, stack = [], [(get_parser(lang).parse(src.encode()).root_node, None)]
+    out, stack, after_self = [], [(get_parser(lang).parse(src.encode()).root_node, None)], False
     while stack:
         node, fn = stack.pop()
         t, line = node.type, node.start_point[0] + 1
@@ -143,7 +143,7 @@ def tokens(src, lang):
             out.append(("LOOP", line))
         elif t in CALL and fn:
             callee = node.child_by_field_name(CALL[t])
-            if callee is not None and callee.text == fn:
+            if callee is not None and re.split(rb"\.|->", callee.text)[-1] == fn:  # go(), self.go(), this->go()
                 out.append(("LOOP", line))
         if t in LITERAL:
             out.append(("LIT", line))
@@ -153,6 +153,14 @@ def tokens(src, lang):
             stack.extend((c, fn) for c in reversed(node.named_children))
             continue
         if node.child_count == 0:
+            # `self` and its "." or "," are class plumbing: a copy moved into `class Solution` must still match
+            if lang == "python" and t == "identifier" and node.text == b"self":
+                after_self = True
+                continue
+            if after_self:
+                after_self = False
+                if t in (".", ","):
+                    continue
             if t in NAME:
                 out.append(("ID", line))
             elif t not in DROP_LEAF:
