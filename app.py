@@ -113,8 +113,8 @@ html [data-testid^="stBaseButton-primary"]:disabled {opacity:.55; cursor:not-all
   border-color:var(--dj-accent, #a0522d) !important}
 /* two body sizes: the lede at 1.0625rem, everything else at 1rem */
 .st-key-demo [data-testid="stMarkdownContainer"] p, .st-key-upload [data-testid="stWidgetLabel"] p,
-  .st-key-how [data-testid="stMarkdownContainer"] :is(p, li) {font-size:1rem}
-.st-key-how [data-testid="stHeading"] h3 {font-size:1.25rem; padding:10px 0 8px}  /* section labels, under the title */
+  .st-key-how [data-testid="stMarkdownContainer"] :is(p, li) {font-size:1rem; text-wrap:pretty}  /* no one-word last lines */
+.st-key-how [data-testid="stHeading"] h2 {font-size:1.25rem; padding:10px 0 8px}  /* section labels, under the title */
 .st-key-how [data-testid="stCode"] pre code {font-size:13px}  /* the two-column example fits a 400px column */
 .st-key-demo > :has([data-testid="stMarkdown"]) {flex:1 1 0; min-width:0}  /* text and button on one row */
 /* phones: the demo button goes under its text, and the example's two columns stack */
@@ -302,7 +302,7 @@ BOARD_CSS = """<style>
 .djb .tag{border:1px solid var(--dj-line);border-radius:6px;padding:2px 8px;background:var(--dj-sunk);font-size:12px;line-height:20px}
 .djb .tag.hot{border-color:var(--dj-accent);color:var(--dj-accent-ink);background:color-mix(in srgb,var(--dj-accent) 9%,transparent)}
 .djb .tok{margin-top:14px;padding:10px 12px;border-radius:10px;background:var(--dj-sunk);line-height:1.9;word-spacing:2px}
-.djb .tok p{margin:0 0 4px;font:500 13px/1.4 "DM Sans",sans-serif;color:var(--dj-muted)}
+.djb .tok p{text-wrap:pretty;margin:0 0 4px;font:500 13px/1.4 "DM Sans",sans-serif;color:var(--dj-muted)}
 .djb .tok .t{color:var(--dj-accent-ink);font-weight:700}
 /*HOVER*/
 </style>"""
@@ -517,11 +517,11 @@ else:
         with st.container(border=True, key="upload"):
             job = upload_form("main") or job
     with right.container(key="how"):
-        st.subheader("How it works")
+        st.header("How it works")  # h2: the page title is the h1
         st.html(evidence_board())
         st.markdown("Names, numbers and loop styles stop mattering. Short runs of these tokens are compared across "
                     "every pair, and runs that few students share count most.")
-        st.subheader("What you get")
+        st.header("What you get")
         st.markdown("1. Pairs ranked by shared rare structure, highest first.\n"
                     "2. Matching lines side by side, and why each pair ranks where it does.\n"
                     "3. Decisions saved in your browser, plus an offline report and a CSV.")
