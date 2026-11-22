@@ -408,6 +408,13 @@ function setMax(on) {
   try { if (window.parent !== window) { const h = window.parent.document.documentElement; if (on) h.dataset.dejavuMax = ""; else delete h.dataset.dejavuMax; } } catch (e) { /* other origin: only this page maximises */ }
 }
 setMax(false); // a rerun of the host reloads this page: start normal
+// Host menus (Ask AI, New scan) close on a click outside them, but clicks in this frame never reach the host: pass one on.
+document.addEventListener("pointerdown", () => {
+  try {
+    const h = window.parent.document;
+    if (window.parent !== window && h.querySelector('[data-testid="stPopoverBody"]')) h.body.dispatchEvent(new MouseEvent("click", {bubbles: true}));
+  } catch (e) { /* other origin: host menus stay until closed there */ }
+});
 $("#presets").innerHTML = Object.entries(PRESETS).map(([n, c]) =>
   `<button type="button" data-p="${n}"><i style="background:${c.match}"></i><i style="background:${c.verb}"></i><i style="background:${c.hot}"></i> ${n}</button>`).join("");
 $("#presets").onclick = (e) => { const b = e.target.closest("[data-p]"); if (b) setColors(PRESETS[b.dataset.p], true); };
