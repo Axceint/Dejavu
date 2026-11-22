@@ -66,6 +66,9 @@ html[data-dejavu-theme] :is([data-testid="stApp"], [data-testid="stPopoverBody"]
   background:var(--dj-bg); color:var(--dj-text)}
 html[data-dejavu-theme] [data-testid="stPopoverBody"] {border:1px solid var(--dj-line)}
 html[data-dejavu-theme] :is([data-testid="stMarkdownContainer"], [data-testid="stWidgetLabel"]) {color:var(--dj-text)}
+/* error boxes follow the OS theme like the rest of Streamlit; repaint them so their text stays readable */
+html[data-dejavu-theme] [data-testid="stAlertContainer"]:has([data-testid="stAlertContentError"]) {
+  background:color-mix(in srgb, var(--dj-bad) 12%, var(--dj-panel)); border:1px solid color-mix(in srgb, var(--dj-bad) 40%, transparent)}
 html[data-dejavu-theme] [data-testid="stMarkdownContainer"] code {background:var(--dj-sunk); color:var(--dj-muted)}
 html[data-dejavu-theme] [data-testid="stFileUploaderDropzone"] {background:var(--dj-sunk); color:var(--dj-text); border-color:var(--dj-line)}
 html[data-dejavu-theme] [data-testid="stFileUploaderDropzoneInstructions"] * {color:var(--dj-muted)}
