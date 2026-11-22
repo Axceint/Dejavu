@@ -20,9 +20,9 @@ const HOST_THEME = /*__THEME__*/null;
 :root{
   color-scheme:light;
   --bg:#f6f1e9;--panel:#fffcf7;--sunk:#efe7db;--line:#e6dccd;--line2:#d6c8b4;
-  --text:#2a1f17;--muted:#6f5f4f;--faint:#9c8b78;
+  --text:#2a1f17;--muted:#6f5f4f;--faint:#756657;
   --accent:#a0522d;--fill:#a0522d;--cite:#ffe98a;--cite-kw:#f5b041;--copy:#a8322a;--copy-bg:#f8e4df;--clear:#3f6b3a;--clear-bg:#e6efe1;
-  --kw:#8a4b1f;--str:#4f6b2f;--com:#9c8b78;--num:#b0621e;--rn:#a0522d;
+  --kw:#8a4b1f;--str:#4f6b2f;--com:#756657;--num:#b0621e;--rn:#a0522d;
   --sans:"DM Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   --serif:"Fraunces",Georgia,"Times New Roman",serif;
   --mono:"JetBrains Mono",ui-monospace,"SF Mono","Cascadia Mono",Consolas,monospace;
@@ -32,9 +32,9 @@ const HOST_THEME = /*__THEME__*/null;
 :root[data-theme=dark]{
   color-scheme:dark;
   --bg:#1b1612;--panel:#231c17;--sunk:#2c241e;--line:#3a2f27;--line2:#4a3d33;
-  --text:#f3e9dc;--muted:#c2b09c;--faint:#8f7d6a;
+  --text:#f3e9dc;--muted:#c2b09c;--faint:#9b8a78;
   --accent:#e0a36a;--fill:#e0a36a;--cite:#5e4c10;--cite-kw:#9a6412;--copy:#f19a8f;--copy-bg:#3b1f1b;--clear:#a7cf8f;--clear-bg:#1f2b1b;
-  --kw:#e7b07a;--str:#b9d08a;--com:#8f7d6a;--num:#f0b27a;--rn:#e0a36a;
+  --kw:#e7b07a;--str:#b9d08a;--com:#9b8a78;--num:#f0b27a;--rn:#e0a36a;
 }
 *{box-sizing:border-box}
 html,body{height:100%;margin:0}
@@ -59,14 +59,16 @@ kbd{font:11px/1 var(--mono);padding:2px 4px;border:1px solid var(--line2);border
 .app.max .side,.app.max .top,.app.max .dh,.app.max .why{display:none}
 .app.max .legend{padding-top:8px}
 .legend .tools{display:flex;gap:12px;align-items:center;margin-left:auto;white-space:nowrap}  /* code size, sync, maximise stay together */
+.legend .tools :is(.btn,select,.sw){height:28px;margin:0}  /* one height for the whole toolbar */
 #maxBtn[aria-pressed=true] .i-max,#maxBtn[aria-pressed=false] .i-min{display:none}
 .top{grid-column:1/-1;display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--panel)}
-.tiles{display:flex;align-items:stretch}
-.tile{display:grid;align-content:center;gap:3px;padding:0 18px;border-left:1px solid var(--line);min-width:84px}
+.tiles{display:flex;align-items:stretch;align-self:stretch}
+.tile{display:grid;align-content:start;align-self:stretch;gap:3px;padding:0 18px;border-left:1px solid var(--line);min-width:84px}
 .tiles .tile:first-child{padding-left:2px;border-left:0}
+.tiles+.tile{margin-left:-12px}  /* cancel the header gap so every divider has the same spacing */
 .tv{font:600 24px/1 var(--serif);letter-spacing:-.01em;color:var(--text)}
 .tv small{font:500 14px var(--serif);color:var(--muted);margin-left:3px}
-.tl{font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.tl{font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
 .ctl{display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-size:13px}
 .ctl select{border:1px solid var(--line2);background:var(--panel);border-radius:4px;padding:3px 6px;line-height:20px}
 .ctl .btn{padding:3px 8px;min-width:30px}
@@ -74,7 +76,7 @@ kbd{font:11px/1 var(--mono);padding:2px 4px;border:1px solid var(--line2);border
 .pbar i{display:block;height:100%;background:var(--fill);width:0;border-radius:3px;transition:width .25s}
 @media (prefers-reduced-motion:reduce){.pbar i{transition:none}}
 .top .sp{flex:1}
-.btn{border:1px solid var(--line2);background:var(--panel);border-radius:6px;padding:5px 12px;line-height:20px;font-weight:500}
+.btn{border:1px solid var(--line2);background:var(--panel);border-radius:6px;padding:4px 12px;line-height:20px;font-weight:500;white-space:nowrap}  /* 30px, same as icon buttons and the note */
 .btn:hover{background:var(--sunk)}
 .btn.icon{width:30px;padding:4px 0;display:inline-flex;align-items:center;justify-content:center}
 .btn.icon svg{width:16px;height:20px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round}
@@ -121,6 +123,7 @@ kbd{font:11px/1 var(--mono);padding:2px 4px;border:1px solid var(--line2);border
 .filters{padding:8px 12px;display:grid;gap:8px;border-bottom:1px solid var(--line)}
 .filters input,.filters select{width:100%;border:1px solid var(--line2);background:var(--bg);border-radius:4px;padding:4px 8px;line-height:20px}
 .frow{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.frow[hidden]{display:none}
 .list{list-style:none;margin:0;padding:0;overflow:auto;flex:1}
 .row{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:4px 8px;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);background:none;padding:8px 12px}
 .row:hover{background:var(--sunk)}
@@ -148,10 +151,10 @@ kbd{font:11px/1 var(--mono);padding:2px 4px;border:1px solid var(--line2);border
 .dh h1{flex-basis:100%;font-size:21px;font-weight:600;letter-spacing:-.01em;margin:0;min-width:0;overflow-wrap:anywhere}
 .dh h1 .x{color:var(--faint);font-weight:400;padding:0 4px}
 .dh h1 .r{color:var(--fill);font:600 13px var(--mono);margin-right:8px}
-.meta{order:1;color:var(--muted);display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.meta{order:1;flex:1 1 auto;color:var(--muted);display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
 .meta .score{font:600 34px/1 var(--serif);color:var(--text);letter-spacing:-.02em}
 .meta .band{font-weight:600;color:var(--text)}
-.dec{order:2;display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-left:auto}
+.dec{order:2;display:flex;gap:8px;align-items:center;flex-wrap:wrap}  /* .meta grows, so this sits right; wrapped, it starts at the left */
 .dec .btn[aria-pressed=true][data-d=copy]{color:var(--copy);background:var(--copy-bg);border-color:var(--copy)}
 .dec .btn[aria-pressed=true][data-d=clear]{color:var(--clear);background:var(--clear-bg);border-color:var(--clear)}
 .note{border:1px solid var(--line2);background:var(--panel);border-radius:4px;padding:4px 8px;line-height:20px;width:220px}
@@ -196,6 +199,7 @@ button.chip:hover{border-color:var(--text)}
 .ln.ai{box-shadow:inset 3px 0 0 var(--ai)}
 .ln.ai .com,.ln.ai .str{color:var(--ai)}
 .tag.ai{color:var(--ai);border-color:currentColor}
+:root[data-theme=dark] :is(.tag.ai,.ln.ai .com,.ln.ai .str){color:color-mix(in srgb,var(--ai) 75%,var(--text))}  /* the AI colour is one value for both themes; lift it on dark */
 .ln.m{cursor:pointer}
 .kw{color:var(--kw)}.str{color:var(--str)}.com{color:var(--com);font-style:italic}.num{color:var(--num)}
 .rn{color:var(--rn);text-decoration:underline dotted;text-underline-offset:3px}
@@ -235,8 +239,8 @@ dialog td:first-child{width:110px}
   .panes{grid-template-columns:1fr}
   .code{max-height:420px}
   .facts{grid-template-columns:1fr}
-  .note{width:100%}
-  .top,.tiles{flex-wrap:wrap}.top{row-gap:8px}.top .tile{border-left:0;padding:0 16px 0 2px}  /* wrapped tiles: no stray dividers */
+  .dec{flex-basis:100%}.note{width:100%}
+  .top,.tiles{flex-wrap:wrap}.top{row-gap:8px}.top .tile{border-left:0;padding:0 16px 0 2px;margin-left:0}  /* wrapped tiles: no stray dividers */
 }
 </style>
 </head>
