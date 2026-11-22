@@ -75,6 +75,8 @@ html[data-dejavu-theme] [data-testid="stAlertContainer"]:has([data-testid="stAle
 html[data-dejavu-theme] [data-testid="stCheckbox"] label > div:first-of-type {background:var(--dj-panel); border-color:var(--dj-line)}
 html[data-dejavu-theme] [data-testid="stCheckbox"] label:has(input:checked) > div:first-of-type {background:var(--dj-accent); border-color:var(--dj-accent)}
 html[data-dejavu-theme] [data-testid="stCheckbox"] label > div:first-of-type polyline {stroke:var(--dj-on-accent)}
+/* and help tooltips (their text already follows the page, so the box must too) */
+html[data-dejavu-theme] [data-testid="stTooltipContent"] {background:var(--dj-panel); color:var(--dj-text); border:1px solid var(--dj-line)}
 html[data-dejavu-theme] [data-testid="stMarkdownContainer"] code {background:var(--dj-sunk); color:var(--dj-muted)}
 html[data-dejavu-theme] [data-testid="stFileUploaderDropzone"] {background:var(--dj-sunk); color:var(--dj-text); border-color:var(--dj-line)}
 html[data-dejavu-theme] [data-testid="stFileUploaderDropzoneInstructions"] * {color:var(--dj-muted)}
