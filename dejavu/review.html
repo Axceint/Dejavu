@@ -786,9 +786,9 @@ function wireDetail(p, byLen) {
   let okT;
   note.oninput = () => {
     const d = dec[pk(p)] || {}; d.note = note.value; if (!d.note && !d.s) delete dec[pk(p)]; else dec[pk(p)] = d; save();
-    // say "Saved" once typing pauses (new text each time, so screen readers hear it again)
+    // say "Saved" once typing pauses (new text each time, so screen readers hear it again); an empty box shows the N hint there instead
     clearTimeout(okT); ok.classList.remove("on"); ok.textContent = "";
-    okT = setTimeout(() => { ok.textContent = "Saved ✓"; ok.classList.add("on"); okT = setTimeout(() => ok.classList.remove("on"), 1500); }, 600);
+    if (note.value) okT = setTimeout(() => { ok.textContent = "Saved ✓"; ok.classList.add("on"); okT = setTimeout(() => ok.classList.remove("on"), 1500); }, 600);
   };
   note.onchange = () => renderList();
   const rb = $("#renBtn");
